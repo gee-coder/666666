@@ -12,12 +12,12 @@ from data_tool import add_separator_in_list
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--input_file", '--f', default=None, type=str, help="待转换文件路径")
+parser.add_argument("--input_file", '--f', default=None, type=str, help="待转换文件所在位置")
 parser.add_argument("--out_file", '--o',
                     default="./out_" + str(time.strftime("%Y-%m-%d-%H-%M", time.localtime())) + ".csv",
                     type=str,
                     help="转换后文件输出路径")
-parser.add_argument("--server", '--s', default=None, type=str, help="待转换文件路径")
+parser.add_argument("--server", '--s', default=None, type=str, help="单条语句模式(服务端, 仅传入字符串)")
 
 args = parser.parse_args()
 
