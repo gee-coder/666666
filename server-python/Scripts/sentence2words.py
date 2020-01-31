@@ -4,18 +4,18 @@
 # Please indicate the source for reprinting.
 
 import argparse
-import time
 from typing import List
 
 import paddlehub as hub
 
 from nlp_tool import add_separator_in_words
+from os_tool import req_time_id
 
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--input_file", '--f', default=None, type=str, help="待转换文件所在位置")
 parser.add_argument("--out_file", '--o',
-                    default="./out_" + str(time.strftime("%Y-%m-%d-%H-%M", time.localtime())) + ".csv",
+                    default="./out_" + req_time_id() + ".csv",
                     type=str,
                     help="转换后文件输出路径")
 parser.add_argument("--shell_server", '--s', default=None, type=str, help="单条语句模式(服务端, 仅传入字符串)")
