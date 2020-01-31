@@ -9,7 +9,7 @@ from typing import List
 
 import paddlehub as hub
 
-from nlp_tool import add_separator_in_list
+from nlp_tool import add_separator_in_words
 
 parser = argparse.ArgumentParser()
 
@@ -36,8 +36,8 @@ def shell():
 
     with open(args.out_file, "w", encoding="utf-8") as output_file:
         for result in results:
-            words = add_separator_in_list(result['word'])
-            tags = add_separator_in_list(result['tag'])
+            words = add_separator_in_words(result['word'])
+            tags = add_separator_in_words(result['tag'])
             output_file.writelines(words + "," + tags + "\n")
 
 
@@ -52,9 +52,10 @@ def server(ori_text: List[str]):
 
     inputs = {"text": ori_text}
     results = lac.lexical_analysis(data=inputs)
-    words = [add_separator_in_list(result['word']) for result in results]
-    tags = [add_separator_in_list(result['tag']) for result in results]
+    words = [add_separator_in_words(result['word']) for result in results]
+    tags = [add_separator_in_words(result['tag']) for result in results]
     return words, tags
+
 
 if __name__ == '__main__':
     shell()
