@@ -3,8 +3,9 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 
-import os
 from typing import List
+
+from os_tool import generate_json_file
 
 
 def add_separator_in_words(words: List[str]) -> str:
@@ -45,3 +46,39 @@ def keyword2label(keyword_data: List[str], server: classmethod):
         label_data.append(labels)
         mask_data.append(masks)
     return label_data, mask_data
+
+
+def generate_index(all_data: list, save_index_path: str = None, file_name: str = "index"):
+    """
+    数据索引制作
+    :param all_data:list 完整数据
+    :param save_index_path:str 数据保存位置
+    :param file_name:str 保存的文件名
+
+    Example:
+    input: generate_index([2, 3, 4])
+    output: {2: 0, 3: 1, 4: 2}
+    """
+    index_dict = {}
+    max_index = 0
+    for sample in all_data:
+        if sample not in index_dict:
+            index_dict[sample] = max_index
+            max_index += 1
+
+    if save_index_path:
+        generate_json_file(index_dict, save_index_path, file_name=file_name)
+    return index_dict
+
+
+def transform_data2id(data: list, data_dict: dict):
+    """
+    转换数据为对应数字索引号
+    :param data: list 原始数据
+    :param data_dict: dict 索引字典
+    :return: 转换后的数据
+    """
+    container = []
+    for sample in data:
+        container.append(data_dict[sample])
+    return container
