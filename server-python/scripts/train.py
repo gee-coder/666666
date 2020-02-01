@@ -24,21 +24,25 @@ with fluid.program_guard(train_program, start_up_program):
     keyword_input = fluid.data("keyword", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     net = SampleNN().main_network(sentence_input)
+    # fluid.layers.Print(net)
+
     cost = fluid.layers.square_error_cost(net, scores_label)
     loss = fluid.layers.mean(cost)
     optimizer = fluid.optimizer.Adam(learning_rate=0.001)
     optimizer.minimize(loss)
 
 # feed data
-train_feeder = fluid.io.batch(fluid.io.shuffle(reader, buf_size=1024), batch_size=32)
-feeder = fluid.DataFeeder(feed_list=['sentence', 'scores'], place=place, program=train_program)
+train_feeder = fluid.io.batch(fluid.io.shuffle(reader(r"D:\a13\server-python\example_data\demo_data.csv",
+                                                      r"D:\a13\server-python\example_data\index.gpack"),
+                                               buf_size=1024), batch_size=32)
+feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'scores'], place=place, program=train_program)
 # train_reader = fluid.io.batch(reader, batch_size=32)
 
 # start train
 controller.run(start_up_program)
-for epoch in range(5):
+for epoch in range(500):
     for i, data in enumerate(train_feeder()):
         info = controller.run(program=train_program,
-                              feed=data,
+                              feed=feeder.feed(data),
                               fetch_list=[loss])
         print(i, info)
