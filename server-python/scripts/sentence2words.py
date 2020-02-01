@@ -8,8 +8,8 @@ from typing import List
 
 import paddlehub as hub
 
-from nlp_tool import add_separator_in_words
-from os_tool import req_time_id
+from scripts.nlp_tool import add_separator_in_words
+from scripts.os_tool import req_time_id
 
 parser = argparse.ArgumentParser()
 
@@ -59,3 +59,4 @@ def server(ori_text: List[str]):
 
 if __name__ == '__main__':
     shell()
+

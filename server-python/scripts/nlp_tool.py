@@ -5,7 +5,7 @@
 
 from typing import List
 
-from os_tool import generate_json_file
+from scripts.os_tool import generate_json_file
 
 
 def add_separator_in_words(words: List[str]) -> str:
@@ -81,4 +81,18 @@ def transform_data2id(data: list, data_dict: dict):
     container = []
     for sample in data:
         container.append(data_dict[sample])
+    return container
+
+
+def transform_id2data(data_id: list, data_dict: dict):
+    """
+    转换数据为对应数字索引号
+    :param data_id: list id数据
+    :param data_dict: dict 索引字典
+    :return: 转换后的数据
+    """
+    tmp_dict = dict(zip(data_dict.values(), data_dict.keys()))
+    container = []
+    for sample in data_id:
+        container.append(tmp_dict[sample])
     return container
