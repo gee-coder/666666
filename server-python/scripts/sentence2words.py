@@ -14,6 +14,11 @@ lac = hub.Module(name="lac")
 
 
 def shell(input_file_path: str, out_file_path: str):
+    """
+    句子转分词
+    :param input_file_path: 待转分词的数据
+    :param out_file_path: 输出文件路径
+    """
     with open(input_file_path, "r", encoding="utf-8") as input_file:
         data = input_file.readlines()
 
@@ -41,7 +46,3 @@ def server(ori_text: List[str]):
     words = [add_separator_in_words(result['word']) for result in results]
     tags = [add_separator_in_words(result['tag']) for result in results]
     return words, tags
-
-
-if __name__ == '__main__':
-    shell(r"D:\a13\server-python\example_data\data1.csv", r"D:\a13\server-python\example_data\dataF1.csv")

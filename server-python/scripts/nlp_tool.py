@@ -48,11 +48,11 @@ def keyword2label(keyword_data: List[str], server: classmethod):
     return label_data, mask_data
 
 
-def generate_index(all_data: list, save_index_path: str = None, file_name: str = "index"):
+def generate_index(all_data: list, save_index_file_path: str = None, file_name: str = "index"):
     """
     数据索引制作
     :param all_data:list 完整数据
-    :param save_index_path:str 数据保存位置
+    :param save_index_file_path:str 数据保存位置
     :param file_name:str 保存的文件名
 
     Example:
@@ -66,9 +66,23 @@ def generate_index(all_data: list, save_index_path: str = None, file_name: str =
             index_dict[sample] = max_index
             max_index += 1
 
-    if save_index_path:
-        generate_json_file(index_dict, save_index_path, file_name=file_name)
+    if save_index_file_path:
+        generate_json_file(index_dict, save_index_file_path, file_name=file_name)
     return index_dict
+
+
+def generate_index_in_data(data_file, save_index_path):
+    """
+    从分词完毕的数据文件中制作索引
+    :param data_file: 数据文件
+    :param save_index_path: 保存路径
+    """
+    with open(data_file, "r", encoding="utf-8") as f:
+        a = f.read().replace("\n", "|").split("|")
+        generate_index(a, save_index_file_path=save_index_path)
+
+
+# generate_index_in_data(r"D:\a13\server-python\example_data\words.csv", r"D:\a13\server-python\example_data")
 
 
 def transform_data2id(data: list, data_dict: dict):
@@ -79,14 +93,16 @@ def transform_data2id(data: list, data_dict: dict):
     :return: 转换后的数据
     """
     container = []
-    for sample in data:
-        container.append(data_dict[sample])
+    for samples in data:
+        samples = samples.split("|")
+        for sample in samples:
+            container.append(data_dict[sample])
     return container
 
 
 def transform_id2data(data_id: list, data_dict: dict):
     """
-    转换数据为对应数字索引号
+    转换索引号为对应数据
     :param data_id: list id数据
     :param data_dict: dict 索引字典
     :return: 转换后的数据

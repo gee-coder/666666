@@ -24,7 +24,7 @@ def load_json_file(json_file_path: str):
     """
     with open(json_file_path, "r", encoding="utf-8") as f:
         data = f.read()
-    return json.loads(data)
+    return json.loads(data, encoding="utf-8")
 
 
 def generate_json_file(dict_data: dict, json_save_path: str, file_name: str = ""):
@@ -38,7 +38,7 @@ def generate_json_file(dict_data: dict, json_save_path: str, file_name: str = ""
     generate_json_file({1:"a"},"./",file_name="word_index")
     this method can generate a file, which name like "JsonGPack-word_index-{Now Time}.gpack"
     """
-    data = json.dumps(dict_data)
+    data = json.dumps(dict_data, ensure_ascii=False)
     with open(os.path.join(json_save_path, "JsonGPack-" + file_name + req_time_id() + ".gpack"),
               "w", encoding="utf-8") as f:
         f.write(data)
