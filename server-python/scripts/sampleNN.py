@@ -12,12 +12,13 @@ class SampleNN:
 
     def main_network(self, lod_data):
         emb = fluid.embedding(input=lod_data, size=[512, 100], is_sparse=True)
-        print(emb.shape)
+        print("emb.shape", emb.shape)
         x = fluid.layers.fc(input=emb, size=512 * 3)
         hidden = fluid.layers.dynamic_gru(input=x, size=512)
-        print(hidden.shape)
+        print("hidden.shape", hidden.shape)
+        output_layer = fluid.layers.fc(hidden, size=1, act="relu")
+        return output_layer
 
-
-data = fluid.data(name="test", shape=[-1], dtype="int64", lod_level=1)
-SampleNN().main_network(data)
-
+# # debug
+# data = fluid.data(name="test", shape=[-1], dtype="int64", lod_level=1)
+# SampleNN().main_network(data)

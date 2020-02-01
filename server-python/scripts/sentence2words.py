@@ -3,38 +3,24 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 
-import argparse
 from typing import List
 
 import paddlehub as hub
 
-from scripts.nlp_tool import add_separator_in_words
-from scripts.os_tool import req_time_id
+from nlp_tool import add_separator_in_words
+from os_tool import req_time_id
 
-parser = argparse.ArgumentParser()
-
-parser.add_argument("--input_file", '--f', default=None, type=str, help="待转换文件所在位置")
-parser.add_argument("--out_file", '--o',
-                    default="./out_" + req_time_id() + ".csv",
-                    type=str,
-                    help="转换后文件输出路径")
-parser.add_argument("--shell_server", '--s', default=None, type=str, help="单条语句模式(服务端, 仅传入字符串)")
-
-args = parser.parse_args()
 lac = hub.Module(name="lac")
 
 
-def shell():
-    if args.server:
-        data = [args.server]
-    else:
-        with open(args.input_file, "r", encoding="utf-8") as input_file:
-            data = input_file.readlines()
+def shell(input_file_path: str, out_file_path: str):
+    with open(input_file_path, "r", encoding="utf-8") as input_file:
+        data = input_file.readlines()
 
     inputs = {"text": data}
     results = lac.lexical_analysis(data=inputs)
 
-    with open(args.out_file, "w", encoding="utf-8") as output_file:
+    with open(out_file_path, "w", encoding="utf-8") as output_file:
         for result in results:
             words = add_separator_in_words(result['word'])
             tags = add_separator_in_words(result['tag'])
@@ -58,5 +44,4 @@ def server(ori_text: List[str]):
 
 
 if __name__ == '__main__':
-    shell()
-
+    shell(r"D:\a13\server-python\example_data\data1.csv", r"D:\a13\server-python\example_data\dataF1.csv")

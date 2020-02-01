@@ -4,9 +4,8 @@
 # Please indicate the source for reprinting.
 
 import paddle.fluid as fluid
-import numpy
 
-from models.sampleNN import SampleNN
+from sampleNN import SampleNN
 from scripts.preprocess import reader
 
 # config
