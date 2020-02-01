@@ -40,9 +40,9 @@ feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'scores'], place=pla
 
 # start train
 controller.run(start_up_program)
-for epoch in range(500):
+for epoch in range(1):
     for i, data in enumerate(train_feeder()):
         info = controller.run(program=train_program,
                               feed=feeder.feed(data),
-                              fetch_list=[loss])
-        print(i, info)
+                              fetch_list=[loss, net])
+        print(i, info[1][0])
