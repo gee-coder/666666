@@ -1,0 +1,53 @@
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.el-breadcrumb {
+  /* 面包屑导航的下边距20px */
+  margin-bottom: 1.25rem;
+}
+
+/*给搜索与附加功能区添加下边距*/
+.el-row {
+  margin-bottom: 20px;
+}
+
+/*使表格的宽度适应屏幕,内容居中显示*/
+.el-table {
+  width: 100%;
+  text-align-last: center;
+}
+
+.el-pagination {
+  /* 分页导航的上边距20px */
+  margin-top: 1.25rem;
+}
+
+
+.el-steps {
+  /*给步骤条功能区添加下边距*/
+  margin-bottom: 20px;
+}
+
+
+/*得分点标签页得分点标签的原生样式*/
+.el-tag + .el-tag {
+	margin-left: 10px;
+	margin-bottom: 10px;
+}
+.button-new-tag {
+	margin-left: 10px;
+	height: 32px;
+	line-height: 30px;
+	padding-top: 0;
+	padding-bottom: 0;
+}
+.input-new-tag {
+	width: 90px;
+	margin-left: 10px;
+	vertical-align: bottom;
+}

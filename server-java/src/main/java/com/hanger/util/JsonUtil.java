@@ -1,6 +1,7 @@
 package com.hanger.util;
 
 import com.alibaba.fastjson.JSON;
+import com.hanger.entity.Problem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,7 +96,7 @@ public class JsonUtil {
      * @param clazz 需要检验的java类
      * @return 是否符合条件
      */
-    public static Boolean checkFormat(String json , Class<Object> clazz) {
+    public static Boolean checkFormat(String json , Class<Problem> clazz) {
 
         HashMap map = JSON.parseObject(json, HashMap.class);
 
