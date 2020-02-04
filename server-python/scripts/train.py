@@ -22,6 +22,7 @@ train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
     sentence_input = fluid.data("sentence", shape=[-1], dtype="int64", lod_level=1)
     keyword_input = fluid.data("keyword", shape=[-1], dtype="int64", lod_level=1)
+    virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     net = SampleNN().main_network(sentence_input)
     # fluid.layers.Print(net)
@@ -35,7 +36,7 @@ with fluid.program_guard(train_program, start_up_program):
 train_feeder = fluid.io.batch(fluid.io.shuffle(reader(r"D:\a13\server-python\example_data\demo_data.csv",
                                                       r"D:\a13\server-python\example_data\index.gpack"),
                                                buf_size=1024), batch_size=32)
-feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'scores'], place=place, program=train_program)
+feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", "virtual", "scores"], place=place, program=train_program)
 # train_reader = fluid.io.batch(reader, batch_size=32)
 
 # start train

@@ -8,7 +8,6 @@ from typing import List
 import paddlehub as hub
 
 from nlp_tool import add_separator_in_words
-from os_tool import req_time_id
 
 lac = hub.Module(name="lac")
 
@@ -46,3 +45,7 @@ def server(ori_text: List[str]):
     words = [add_separator_in_words(result['word']) for result in results]
     tags = [add_separator_in_words(result['tag']) for result in results]
     return words, tags
+
+
+print(server(['不是只有一个装货点和一个卸货点的线路安排']))
+

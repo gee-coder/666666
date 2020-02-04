@@ -21,7 +21,7 @@ def add_separator_in_words(words: List[str]) -> str:
     return container
 
 
-def keyword2label(keyword_data: List[str], server: classmethod):
+def keyword2label_mask(keyword_data: List[str], server: classmethod):
     """
     关键字转标签
     :param keyword_data: 关键字数据
