@@ -164,9 +164,10 @@ class DataEnhancement:
 # pass
 
 
-def reader(data_csv, word_dict_file):
+def reader(data_csv: str, word_dict_file: str, debug: bool = True):
     """
     数据生成器
+    :param debug: 是否显示数据集错误
     :param data_csv: csv所在位置
     :param word_dict_file: 词典文件
     :return:
@@ -174,7 +175,6 @@ def reader(data_csv, word_dict_file):
     word_dict = load_json_file(word_dict_file)
 
     def train():
-        error = 0
         with open(data_csv, "r", encoding="utf-8") as f:
             lines = f.readlines()
         data = [[] for _ in range(7)]
@@ -202,9 +202,9 @@ def reader(data_csv, word_dict_file):
                     score = np.array(score / 10).reshape([1]).astype("float32")
                     yield ori_key_id, key_word_id, input_text_id, score
             except BaseException as e:
-                print("Error!", error, e)
-                print(traceback.print_exc())
-                error += 1
+                if debug:
+                    print("Data Error!", e)
+                    print(traceback.print_exc())
                 input_text_id = ori_key_id
                 score = np.array(1).reshape([1]).astype("float32")
                 yield ori_key_id, key_word_id, input_text_id, score

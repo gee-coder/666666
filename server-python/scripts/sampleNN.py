@@ -10,18 +10,13 @@ class SampleNN:
     def __init__(self, mode: int = 1):
         self.mode = mode
 
-    def stacked_lstm_net(self, data, input_dim, class_dim, emb_dim, hid_dim, stacked_num):
-        # 计算词向量
-        emb = fluid.embedding(
-            input=data, size=[input_dim, emb_dim], is_sparse=True)
-
-        # 第一层栈
-        # 全连接层
-        fc1 = fluid.layers.fc(input=emb, size=hid_dim)
+    def sample_layer(self, fc):
+        hid_dim = 200
+        stacked_num = 3
         # lstm层
-        lstm1, cell1 = fluid.layers.dynamic_lstm(input=fc1, size=hid_dim)
+        lstm1, cell1 = fluid.layers.dynamic_lstm(input=fc, size=hid_dim)
 
-        inputs = [fc1, lstm1]
+        inputs = [fc, lstm1]
 
         # 其余的所有栈结构
         for i in range(2, stacked_num + 1):
@@ -33,18 +28,29 @@ class SampleNN:
         # 池化层
         fc_last = fluid.layers.sequence_pool(input=inputs[0], pool_type='max')
         lstm_last = fluid.layers.sequence_pool(input=inputs[1], pool_type='max')
+        final = fluid.layers.fc(input=[fc_last, lstm_last], size=hid_dim)
+        return final
 
+    def main_network(self, sentence_input, keyword_input, virtual_input):
+        hid_dim = 200
+
+        sentence_input = fluid.embedding(input=sentence_input, size=[3096, 100], is_sparse=True)
+        keyword_input = fluid.embedding(input=keyword_input, size=[3096, 100], is_sparse=True)
+        virtual_input = fluid.embedding(input=virtual_input, size=[3096, 100], is_sparse=True)
+        # 第一层栈
+        # 全连接层
+        fc1 = fluid.layers.fc(input=sentence_input, size=hid_dim)
+        fc2 = fluid.layers.fc(input=keyword_input, size=hid_dim)
+        fc3 = fluid.layers.fc(input=virtual_input, size=hid_dim)
+        final1 = self.sample_layer(fc1)
+        final2 = self.sample_layer(fc2)
+        final3 = self.sample_layer(fc3)
         # 全连接层，softmax预测
-        prediction = fluid.layers.fc(
-            input=[fc_last, lstm_last], size=class_dim, act='sigmoid')
+        tmp = fluid.layers.fc(input=[final1, final2, final3], size=100, act='relu')
+
+        prediction = fluid.layers.fc(input=tmp, size=1, act='relu')
 
         return prediction
-
-    def main_network(self, lod_data):
-        # emb = fluid.embedding(input=lod_data, size=[3096, 100], is_sparse=True)
-
-        conv_4 = self.stacked_lstm_net(lod_data, 3000, 1, 100, 100, 100)
-        return conv_4
 
 # # debug
 # data = fluid.data(name="test", shape=[-1], dtype="int64", lod_level=1)
