@@ -164,29 +164,35 @@ class DataEnhancement:
 # pass
 
 
-def reader(data_csv: str, word_dict_file: str, debug: bool = True):
+def reader(data_csv: str, word_dict_file: str, is_val: bool = False, train_rate: float = 0.7, debug: bool = True):
     """
     数据生成器
     :param debug: 是否显示数据集错误
     :param data_csv: csv所在位置
     :param word_dict_file: 词典文件
-    :return:
+    :param is_val: 是否返回为测试集
+    :param train_rate: 训练集比例
+    :return: reader对象
     """
     word_dict = load_json_file(word_dict_file)
+    with open(data_csv, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    data = [[] for _ in range(7)]
+    for id_, line in enumerate(lines):
+        line = line.split(",")
+        for item_id, item in enumerate(line):
+            data[item_id].append(item)
+    data_enhancement = DataEnhancement(key_data=data[3],
+                                       key_n_data=data[4],
+                                       key_word_data=data[5],
+                                       key_word_n_data=data[6])
 
-    def train():
-        with open(data_csv, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        data = [[] for _ in range(7)]
-        for id_, line in enumerate(lines):
-            line = line.split(",")
-            for item_id, item in enumerate(line):
-                data[item_id].append(item)
-        data_enhancement = DataEnhancement(key_data=data[3],
-                                           key_n_data=data[4],
-                                           key_word_data=data[5],
-                                           key_word_n_data=data[6])
-        for index in range(len(data_enhancement)):
+    def generate_data():
+        all_index_list = [i for i in range(len(data_enhancement))]
+        train_list = all_index_list[:int(len(data_enhancement) * train_rate)]
+        val_list = all_index_list[int(len(data_enhancement) * train_rate):]
+        index_list = val_list if is_val else train_list
+        for index in index_list:
             ori_key = data[3][index]
             ori_key_words = data[5][index]
             ori_key_id = transform_data2id([ori_key], word_dict)
@@ -209,7 +215,7 @@ def reader(data_csv: str, word_dict_file: str, debug: bool = True):
                 score = np.array(1).reshape([1]).astype("float32")
                 yield ori_key_id, key_word_id, input_text_id, score
 
-    return train
+    return generate_data
 
 #
 # a = reader(r"D:\a13\server-python\example_data\demo_data.csv", r"D:\a13\server-python\example_data\index.gpack")

@@ -4,6 +4,16 @@
 # Please indicate the source for reprinting.
 
 import paddle.fluid as fluid
+import paddle.fluid.initializer as parm_init
+
+
+def parm_mara():
+    param = fluid.ParamAttr(
+        initializer=parm_init.MSRA(),
+        learning_rate=0.5,
+        regularizer=fluid.regularizer.L2Decay(1.0),
+        trainable=True)
+    return param
 
 
 class SampleNN:
@@ -47,7 +57,7 @@ class SampleNN:
         final3 = self.sample_layer(fc3)
         # 全连接层，softmax预测
         tmp = fluid.layers.fc(input=[final1, final2, final3], size=100, act='relu')
-
+        # tmp = fluid.layers.batch_norm(tmp)
         prediction = fluid.layers.fc(input=tmp, size=1, act='relu')
 
         return prediction
