@@ -5,7 +5,7 @@
 
 from typing import List
 
-from os_tool import generate_json_file
+from scripts.os_tool import generate_json_file
 
 
 def add_separator_in_words(words: List[str]) -> str:
