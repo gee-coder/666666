@@ -9,8 +9,8 @@ from typing import List
 
 import numpy as np
 
-from nlp_tool import transform_data2id
-from os_tool import load_json_file
+from scripts.nlp_tool import transform_data2id
+from scripts.os_tool import load_json_file
 
 
 class DataEnhancement:

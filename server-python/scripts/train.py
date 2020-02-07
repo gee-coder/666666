@@ -88,6 +88,7 @@ for epoch in range(config["EPOCHE_NUM"]):
     val_acc += val_info[2]
 
 config["seed"] = train_program.random_seed
-config["val_acc"] = val_acc / config["EPOCHE_NUM"]
-log.write_log(config, massage="训练参数")
-print("\n==========END==========\n|VAL Avg Accuracy:\t{:.4f} %".format(config["val_acc"] * 100))
+config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"])
+
+log.write_log(config, message="tanh+1xfc")
+print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])

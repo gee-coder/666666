@@ -54,6 +54,7 @@ def generate_json_file(dict_data: dict, json_save_path: str, file_name: str = ""
 
 class GLog:
     dict = {}
+    index = 0
 
     def __init__(self, gpack_path: str, item_heads: dict, file_name: str = None):
         self.item_heads = item_heads
@@ -63,27 +64,34 @@ class GLog:
         self.exists = os.path.exists(file_path)
         self.file = open(file_path, "a+", encoding="utf-8")
         self._creat_heads()
+        self.start_time = time.time()
 
     def _creat_heads(self):
         if self.exists:
             for i, head in enumerate(self.item_heads.keys()):
                 self.dict[head] = None
         else:
-            pack = ["|" + req_time_id(short_YMD=True) + "\t|\t", "|Massage\t|\t"]
+            pack = ["|" + req_time_id(short_YMD=True) + "\t|\t", "|Cost Time\t|\t", "|Massage\t|\t"]
             for i, head in enumerate(self.item_heads.keys()):
                 self.dict[head] = None
                 pack.append("|" + str(head) + "\t|\t") if i != len(self.item_heads) - 1 else \
                     pack.append("|" + str(head) + "\t|\n")
             self.file.writelines(pack)
 
-    def write_log(self, items: dict, massage: str = "None"):
+    def write_log(self, items: dict, message: str = "None"):
         pre_dict = dict(self.dict)
-        pack = [req_time_id(short_HMS=True) + "\t", massage + "\t"]
+        pack = [req_time_id() + "\t\t", "{:2f}".format(time.time() - self.start_time) + "\t\t", message + "\t\t"]
         pre_dict.update(items)
         for i, item in enumerate(pre_dict.items()):
             if item[1] is None:
                 item = "None"
             pack.append(str(item) + "\t") if i != len(pre_dict) - 1 else pack.append(str(item) + "\n")
+        self.file.writelines(pack)
+
+    def write_message(self, *args):
+        pack = [str(self.index)]
+        for i in args:
+            pack.append("\t" + str(i))
         self.file.writelines(pack)
 
     def close(self):
