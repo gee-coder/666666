@@ -57,10 +57,10 @@ def generate_index(all_data: list, save_index_file_path: str = None, file_name: 
 
     Example:
     input: generate_index([2, 3, 4])
-    output: {2: 0, 3: 1, 4: 2}
+    output: {2: 1, 3: 2, 4: 3}
     """
     index_dict = {}
-    max_index = 0
+    max_index = 1
     for sample in all_data:
         if sample not in index_dict:
             index_dict[sample] = max_index
@@ -82,7 +82,7 @@ def generate_index_in_data(data_file, save_index_path):
         generate_index(a, save_index_file_path=save_index_path)
 
 
-# generate_index_in_data(r"D:\a13\server-python\example_data\words.csv", r"D:\a13\server-python\example_data")
+generate_index_in_data(r"D:\a13\server-python\example_data\key_i.txt", r"D:\a13\server-python\example_data")
 
 
 def transform_data2id(data: list, data_dict: dict):
@@ -94,7 +94,7 @@ def transform_data2id(data: list, data_dict: dict):
     """
     container = []
     for samples in data:
-        samples = samples.split("|")
+        samples = samples.replace("\n", "").split("|")
         for sample in samples:
             container.append(data_dict[sample])
     return container

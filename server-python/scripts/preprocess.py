@@ -164,17 +164,20 @@ class DataEnhancement:
 # pass
 
 
-def reader(data_csv: str, word_dict_file: str, is_val: bool = False, train_rate: float = 0.7, debug: bool = True):
+def reader(data_csv: str, word_dict_file: str, word_n_dict_file: str, is_val: bool = False, train_rate: float = 0.7,
+           debug: bool = True):
     """
     数据生成器
     :param debug: 是否显示数据集错误
     :param data_csv: csv所在位置
     :param word_dict_file: 词典文件
+    :param word_n_dict_file: 词性词典文件
     :param is_val: 是否返回为测试集
     :param train_rate: 训练集比例
     :return: reader对象
     """
     word_dict = load_json_file(word_dict_file)
+    word_n_dict = load_json_file(word_n_dict_file)
     with open(data_csv, "r", encoding="utf-8") as f:
         lines = f.readlines()
     data = [[] for _ in range(7)]
@@ -194,11 +197,19 @@ def reader(data_csv: str, word_dict_file: str, is_val: bool = False, train_rate:
         index_list = val_list if is_val else train_list
         for index in index_list:
             ori_key = data[3][index]
+            ori_n_key = data[4][index]
             ori_key_words = data[5][index]
+            ori_key_n_words = data[6][index]
             ori_key_id = transform_data2id([ori_key], word_dict)
             key_word_id = transform_data2id([ori_key_words], word_dict)
+            ori_key_n_id = transform_data2id([ori_n_key], word_n_dict)
+            key_word_n_id = transform_data2id([ori_key_n_words], word_n_dict)
+
             ori_key_id = np.array(ori_key_id).astype("int64")
             key_word_id = np.array(key_word_id).astype("int64")
+            ori_key_n_id = np.array(ori_key_n_id).astype("int64")
+            key_word_n_id = np.array(key_word_n_id).astype("int64")
+
             try:
                 samples = data_enhancement.req_data(index)
                 for sample in samples:
@@ -213,10 +224,10 @@ def reader(data_csv: str, word_dict_file: str, is_val: bool = False, train_rate:
                     print(traceback.print_exc())
                 input_text_id = ori_key_id
                 score = np.array(1).reshape([1]).astype("float32")
-                yield ori_key_id, key_word_id, input_text_id, score
+                yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, input_text_id, score
 
     return generate_data
 
 #
-# a = reader(r"D:\a13\server-python\example_data\demo_data.csv", r"D:\a13\server-python\example_data\index.gpack")
+# a = reader(r"D:\a13\server-python\example_data\demo_data.csv", r"D:\a13\server-python\example_data\demo_index.gpack")
 # pass

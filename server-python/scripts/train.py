@@ -15,11 +15,12 @@ from scripts.os_tool import GLog
 # config
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
-DATA_CSV = os.path.join(ROOT_PATH, "example_data/demo_data.csv")
-INDEX_GPACK = os.path.join(ROOT_PATH, "example_data/index.gpack")
+DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
+INDEX_GPACK = os.path.join(ROOT_PATH, "example_data/index_i.gpack")
+INDEX_N_GPACK = os.path.join(ROOT_PATH, "example_data/index_n.gpack")
 config = {
-    "EPOCHE_NUM": 20,
-    "BATCH_SIZE": 4
+    "EPOCHE_NUM": 2000,
+    "BATCH_SIZE": 256
 }
 
 # environment
@@ -32,7 +33,9 @@ start_up_program = fluid.Program()
 train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
     sentence_input = fluid.data("sentence", shape=[-1], dtype="int64", lod_level=1)
+    sentence_n = fluid.data("sentence_n", shape=[-1], dtype="int64", lod_level=1)
     keyword_input = fluid.data("keyword", shape=[-1], dtype="int64", lod_level=1)
+    keyword_n = fluid.data("keyword_n", shape=[-1], dtype="int64", lod_level=1)
     virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     net = SampleNN().main_network(sentence_input, keyword_input, virtual_input)
@@ -45,19 +48,21 @@ with fluid.program_guard(train_program, start_up_program):
     optimizer.minimize(loss)
 
 # feed data
-train_reader = reader(DATA_CSV, INDEX_GPACK, debug=False)
-val_reader = reader(DATA_CSV, INDEX_GPACK, debug=False, is_val=True)
+train_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False)
+val_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
-train_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", "virtual", "scores"], place=place,
+train_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "scores"],
+                                place=place,
                                 program=train_program)
-val_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", "virtual", "scores"], place=place,
+val_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "scores"],
+                              place=place,
                               program=train_program)
 
 # init log
 config["val_acc"] = None
 config["seed"] = None
-log = GLog(gpack_path=r"D:\a13\server-python\config", item_heads=config, file_name="train_log")
+log = GLog(gpack_path=r"D:\a13\server-python\config", item_heads=config, file_name="train_log2")
 
 
 # define train
@@ -88,7 +93,7 @@ for epoch in range(config["EPOCHE_NUM"]):
     val_acc += val_info[2]
 
 config["seed"] = train_program.random_seed
-config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"])
+config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
 
-log.write_log(config, message="tanh+1xfc")
+log.write_log(config, message="tanh+3xfc 1 relu")
 print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])

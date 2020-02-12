@@ -20,6 +20,7 @@ def shell(input_file_path: str, out_file_path: str):
     """
     with open(input_file_path, "r", encoding="utf-8") as input_file:
         data = input_file.readlines()
+        data = [i.replace("\n", "") for i in data]
 
     inputs = {"text": data}
     results = lac.lexical_analysis(data=inputs)
@@ -29,6 +30,9 @@ def shell(input_file_path: str, out_file_path: str):
             words = add_separator_in_words(result['word'])
             tags = add_separator_in_words(result['tag'])
             output_file.writelines(words + "," + tags + "\n")
+
+
+shell(r"D:\a13\server-python\example_data\keyword.txt", r"D:\a13\server-python\example_data\mid_keyword.csv")
 
 
 def server(ori_text: List[str]):
@@ -45,5 +49,3 @@ def server(ori_text: List[str]):
     words = [add_separator_in_words(result['word']) for result in results]
     tags = [add_separator_in_words(result['tag']) for result in results]
     return words, tags
-
-
