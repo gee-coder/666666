@@ -164,7 +164,7 @@ class DataEnhancement:
 # pass
 
 
-def reader(data_csv: str, word_dict_file: str, word_n_dict_file: str, is_val: bool = False, train_rate: float = 0.7,
+def reader(data_csv: str, word_dict_file: str, word_n_dict_file: str, is_val: bool = False, train_rate: float = 0.8,
            debug: bool = True):
     """
     数据生成器
@@ -217,7 +217,7 @@ def reader(data_csv: str, word_dict_file: str, word_n_dict_file: str, is_val: bo
                     input_text_id = transform_data2id([input_text], word_dict)
                     input_text_id = np.array(input_text_id).astype("int64")
                     score = np.array(score / 10).reshape([1]).astype("float32")
-                    yield ori_key_id, key_word_id, input_text_id, score
+                    yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, input_text_id, score
             except BaseException as e:
                 if debug:
                     print("Data Error!", e)

@@ -82,7 +82,7 @@ def generate_index_in_data(data_file, save_index_path):
         generate_index(a, save_index_file_path=save_index_path)
 
 
-generate_index_in_data(r"D:\a13\server-python\example_data\key_i.txt", r"D:\a13\server-python\example_data")
+# generate_index_in_data(r"D:\a13\server-python\example_data\key_i.txt", r"D:\a13\server-python\example_data")
 
 
 def transform_data2id(data: list, data_dict: dict):

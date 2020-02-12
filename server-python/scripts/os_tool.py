@@ -56,13 +56,14 @@ class GLog:
     dict = {}
     index = 0
 
-    def __init__(self, gpack_path: str, item_heads: dict, file_name: str = None):
+    def __init__(self, gpack_path: str, item_heads: dict, file_name: str = None, new_file: bool = False):
         self.item_heads = item_heads
         if file_name is None:
             file_name = req_time_id()
         file_path = os.path.join(gpack_path, file_name) + ".gpack"
         self.exists = os.path.exists(file_path)
-        self.file = open(file_path, "a+", encoding="utf-8")
+        f_type = "w" if new_file else "a"
+        self.file = open(file_path, f_type, encoding="utf-8")
         self._creat_heads()
         self.start_time = time.time()
 

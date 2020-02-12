@@ -19,8 +19,8 @@ DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
 INDEX_GPACK = os.path.join(ROOT_PATH, "example_data/index_i.gpack")
 INDEX_N_GPACK = os.path.join(ROOT_PATH, "example_data/index_n.gpack")
 config = {
-    "EPOCHE_NUM": 2000,
-    "BATCH_SIZE": 256
+    "EPOCHE_NUM": 5,
+    "BATCH_SIZE": 16
 }
 
 # environment
@@ -38,7 +38,7 @@ with fluid.program_guard(train_program, start_up_program):
     keyword_n = fluid.data("keyword_n", shape=[-1], dtype="int64", lod_level=1)
     virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
-    net = SampleNN().main_network(sentence_input, keyword_input, virtual_input)
+    net = SampleNN().main_network(sentence_input, keyword_input, sentence_n, keyword_n, virtual_input)
     # fluid.layers.Print(net)
 
     cost = fluid.layers.square_error_cost(net, scores_label)
@@ -62,7 +62,9 @@ val_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'sentence_n', "k
 # init log
 config["val_acc"] = None
 config["seed"] = None
-log = GLog(gpack_path=r"D:\a13\server-python\config", item_heads=config, file_name="train_log2")
+log = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2")
+log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None}, file_name="data_log")
+FIRST_FLAG = False
 
 
 # define train
@@ -78,6 +80,8 @@ def controller_process(program, data_reader, feeder):
             infos["label"].append(info[2].tolist())
         except Exception as e:
             print("sum loss error:", e)
+    # if FIRST_FLAG is False:
+    #     print("|DATA_NUM|\t|", i * config["BATCH_SIZE"])
     loss_info = sum(infos["loss"]) / len(infos["loss"])
     acc = [np.average(np.abs(np.array(i) - np.array(ii)).flatten()) for i, ii in zip(infos["out"], infos["label"])]
     acc = 1 - sum(acc) / len(acc)
@@ -89,6 +93,7 @@ controller.run(start_up_program)
 for epoch in range(config["EPOCHE_NUM"]):
     train_info = controller_process(train_program, train_reader, train_feeder)
     val_info = controller_process(val_program, val_reader, val_feeder)
+    log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     val_acc += val_info[2]
 
@@ -96,4 +101,5 @@ config["seed"] = train_program.random_seed
 config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
 
 log.write_log(config, message="tanh+3xfc 1 relu")
+
 print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])
