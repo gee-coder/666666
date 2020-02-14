@@ -32,7 +32,7 @@ def shell(input_file_path: str, out_file_path: str):
             output_file.writelines(words + "," + tags + "\n")
 
 
-shell(r"D:\a13\server-python\example_data\keyword.txt", r"D:\a13\server-python\example_data\mid_keyword.csv")
+# shell(r"D:\a13\server-python\example_data\keyword.txt", r"D:\a13\server-python\example_data\mid_keyword.csv")
 
 
 def server(ori_text: List[str]):

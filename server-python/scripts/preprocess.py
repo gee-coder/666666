@@ -5,10 +5,12 @@
 
 import traceback
 import random
+import re
 from typing import List
 
 import numpy as np
 
+from scripts.sentence2words import server
 from scripts.nlp_tool import transform_data2id
 from scripts.os_tool import load_json_file
 
@@ -18,12 +20,16 @@ class DataEnhancement:
     数据集增强-机器打分类
     """
     # 0-5权重值
-    word_weight = {"nz": 5,
-                   "n": 4,
-                   "vn": 3,
-                   "u": 0,
-                   "w": 0,
-                   "other": 0.5}
+    word_weight_l = {"nz": 5.,
+                     "n": 4.,
+                     "vn": 3.,
+                     "u": 0.,
+                     "w": 0.,
+                     "other": 0.5}
+    word_weight_s = {"nz": 1,
+                     "n": 0.5,
+                     "vn": 0.5,
+                     "other": 0.}
     # 数据分组数量
     data_group = 5
     # 随机池
@@ -50,13 +56,13 @@ class DataEnhancement:
             tmp1 = []
             tmp2 = []
             for key_word, key_n in zip(key_words, key_ns):
-                tmp1.append(key_word.split("|"))
-                tmp2.append(key_n.replace("|w", "").split("|"))
+                tmp1.append(key_word.replace("\n", "").split("|"))
+                tmp2.append(key_n.replace("|w", "").replace("\n", "").split("|"))
             self.key_word_data.append(tmp1)
             self.key_word_n_data.append(tmp2)
 
-        key_data = [i.split("|") for i in key_data]
-        key_n_data = [i[:-2].split("|") for i in key_n_data]  # 去掉换行符
+        key_data = [i.replace("\n", "").split("|") for i in key_data]
+        key_n_data = [i.replace("\n", "").split("|") for i in key_n_data]  # 去掉换行符
         self.key_data = key_data
         self.key_n_data = key_n_data
 
@@ -81,18 +87,26 @@ class DataEnhancement:
         count = []
         for key_id, key_n in enumerate(keys_n):
             len_key = len(key_n)
-            for num in range(3):
-                # 3次窗口循环
-                if len_key < num + 1:
-                    break
-                for i in range(len_key - num + 1):
-                    # 窗口循环
-                    score = 0
-                    for k in key_n[i:i + num + 1]:
-                        # 计算窗口内分数
-                        score += self.word_weight[k] if k in self.word_weight else self.word_weight["other"]
-                    if score >= 5:
-                        count.append((str(key_id) + "-" + str(i) + "-" + str(i + num), score))
+
+            if len_key < 3:
+                # 短词直接替换策略
+                # 第 N 个得分点 - 窗口开始点 - 窗口结束点 , 分数
+                count.append((str(key_id) + "-" + str(0) + "-" + str(len_key), 5))
+            else:
+                # 长句窗口循环策略
+                for num in range(3):
+                    # 3次窗口循环
+                    if len_key < num + 1:
+                        break
+                    for i in range(len_key - num + 1):
+                        # 窗口循环
+                        score = 0
+                        for k in key_n[i:i + num + 1]:
+                            # 计算窗口内分数
+                            score += self.word_weight_l[k] if k in self.word_weight_l else self.word_weight_l["other"]
+                        if score >= 5:
+                            # 第 N 个得分点 - 窗口开始点 - 窗口结束点 , 分数
+                            count.append((str(key_id) + "-" + str(i) + "-" + str(i + num + 1), score))
         # 替换得分点
         keys_group = {}  # 该组内为已经替换好的得分点信息
         for info, _ in count:
@@ -115,31 +129,32 @@ class DataEnhancement:
 
             if info[0] not in keys_group:
                 keys_group[info[0]] = []
-            else:
-                keys_group[info[0]].append((ori_word, new_word))
+            keys_group[info[0]].append((ori_word, new_word))
 
         # 计算分数
         ori_sample_data = "|".join(self.key_data[index])
         if len(keys_group) > 0:
             score_weight = 1 / len(keys_group)
             done_text = []
-            for id_0 in range(len(keys_group) + 1):
+            key_list = [rand_id for rand_id in keys_group.keys() if len(keys_group[rand_id]) > 0]
+            for id_0 in range(len(key_list) + 1):
                 # 遍历所有分值可能，id_0代表需要替换的个数
-                rand_list = random.sample(keys_group.keys(), id_0)
-                sample_text = ori_sample_data
+                rand_list = random.sample(key_list, id_0)
+                sample_text = ori_sample_data.replace("|", "")
+                sample_n = None
                 s = 1
                 for i in rand_list:
                     tmp = keys_group[i]
-                    if len(tmp) < 1:
-                        continue
                     rand = random.randint(0, len(tmp) - 1)
                     tmp = tmp[rand]
-                    if tmp[0] in sample_text.replace("|", ""):
-                        sample_text = sample_text.replace(tmp[0], tmp[1], 1)
+                    if tmp[0] in sample_text:
+                        sample_text = sample_text.replace(tmp[0], tmp[1])
                         s -= score_weight
-                done_text.append((sample_text, s * 10))
+                sample_text, sample_n = server([sample_text])
+                done_text.append((sample_text, sample_n, s * 10))
         else:
-            done_text = [(ori_sample_data, 10)]
+            tmp_n = "|".join(self.key_n_data[index])
+            done_text = [(ori_sample_data, tmp_n, 10)]
         self.now_data = done_text
 
     def req_data(self, index: int, method: classmethod = n_limit_tactics):
@@ -158,9 +173,11 @@ class DataEnhancement:
         return len(self.key_data)
 
 
-# a = DataEnhancement(["不是|只有|一个|装货|点|和|一个|卸货|点|的|线路|安排"], ['v|v|m|vn|n|c|m|vn|n|u|n|vn|w'],
-#                     ['不是|只有|一个|装货|点| |和|一个|卸货|点|的|线路|安排'], ['v|v|m|vn|n|w|c|m|vn|n|u|n|vn|w'])
-# print(a.req_data(0))
+# a = DataEnhancement(["不是|只有|一个|装货|点|和|一个|卸货|点|的|线路|安排", "仓库|一般|只|做|外观|检验|和|尺寸|精度|检验|两种|。"],
+#                     ['v|v|m|vn|n|c|m|vn|n|u|n|vn', 'n|ad|d|v|n|vn|c|n|n|vn|nz'],
+#                     ['不是|只有|一个|装货|点| |和|一个|卸货|点|的|线路|安排', "外观| |检验| |尺寸|精度| |检验"],
+#                     ['v|v|m|vn|n|w|c|m|vn|n|u|n|vn', "n|w|vn|w|n|n|w|vn"])
+# print(a.req_data(1))
 # pass
 
 
@@ -213,18 +230,19 @@ def reader(data_csv: str, word_dict_file: str, word_n_dict_file: str, is_val: bo
             try:
                 samples = data_enhancement.req_data(index)
                 for sample in samples:
-                    input_text, score = sample
-                    input_text_id = transform_data2id([input_text], word_dict)
+                    input_text, input_text_n, score = sample
+                    input_text_id = transform_data2id(input_text, word_dict)
+                    input_text_n_id = transform_data2id(input_text_n, word_n_dict)
                     input_text_id = np.array(input_text_id).astype("int64")
+                    input_text_n_id = np.array(input_text_n_id).astype("int64")
                     score = np.array(score / 10).reshape([1]).astype("float32")
-                    yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, input_text_id, score
+                    yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, input_text_id, input_text_n_id, score
             except BaseException as e:
                 if debug:
                     print("Data Error!", e)
                     print(traceback.print_exc())
-                input_text_id = ori_key_id
                 score = np.array(1).reshape([1]).astype("float32")
-                yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, input_text_id, score
+                yield ori_key_id, key_word_id, ori_key_n_id, key_word_n_id, ori_key_id, ori_key_n_id, score
 
     return generate_data
 

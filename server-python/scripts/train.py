@@ -15,14 +15,18 @@ from scripts.os_tool import GLog
 # config
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
-DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
+DATA_CSV = os.path.join(ROOT_PATH, "example_data/demo_data.csv")
 INDEX_GPACK = os.path.join(ROOT_PATH, "example_data/index_i.gpack")
 INDEX_N_GPACK = os.path.join(ROOT_PATH, "example_data/index_n.gpack")
 config = {
     "EPOCHE_NUM": 5,
-    "BATCH_SIZE": 16
+    "BATCH_SIZE": 16,
+    "BOUNDARIES": [500, 2000, 4000],
+    "LR_STEPS": [0.1, 0.01, 0.001, 0.0001],
+    "WARMUP_STEPS": 200,
+    "START_LR": 0.01,
+    "END_LR": 0.1
 }
-
 # environment
 
 place = fluid.CUDAPlace(0) if USE_CUDA else fluid.CPUPlace()
@@ -37,6 +41,7 @@ with fluid.program_guard(train_program, start_up_program):
     keyword_input = fluid.data("keyword", shape=[-1], dtype="int64", lod_level=1)
     keyword_n = fluid.data("keyword_n", shape=[-1], dtype="int64", lod_level=1)
     virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
+    virtual_n_input = fluid.data("virtual_n", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     net = SampleNN().main_network(sentence_input, keyword_input, sentence_n, keyword_n, virtual_input)
     # fluid.layers.Print(net)
@@ -44,7 +49,14 @@ with fluid.program_guard(train_program, start_up_program):
     cost = fluid.layers.square_error_cost(net, scores_label)
     loss = fluid.layers.mean(cost)
     val_program = train_program.clone(for_test=True)
-    optimizer = fluid.optimizer.Adam(learning_rate=0.001)
+
+    # learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
+    #
+    # decayed_lr = fluid.layers.linear_lr_warmup(learning_rate,
+    #                                            config["WARMUP_STEPS"],
+    #                                            config["START_LR"],
+    #                                            config["END_LR"])
+    optimizer = fluid.optimizer.Adam(learning_rate=0.01)
     optimizer.minimize(loss)
 
 # feed data
@@ -52,12 +64,14 @@ train_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False)
 val_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
-train_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "scores"],
-                                place=place,
-                                program=train_program)
-val_feeder = fluid.DataFeeder(feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "scores"],
-                              place=place,
-                              program=train_program)
+train_feeder = fluid.DataFeeder(
+    feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "virtual_n", "scores"],
+    place=place,
+    program=train_program)
+val_feeder = fluid.DataFeeder(
+    feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "virtual_n", "scores"],
+    place=place,
+    program=train_program)
 
 # init log
 config["val_acc"] = None
@@ -69,6 +83,7 @@ FIRST_FLAG = False
 
 # define train
 def controller_process(program, data_reader, feeder):
+    global FIRST_FLAG
     infos = {"loss": [], "out": [], "label": []}
     for i, data in enumerate(data_reader()):
         info = controller.run(program=program,
@@ -80,10 +95,12 @@ def controller_process(program, data_reader, feeder):
             infos["label"].append(info[2].tolist())
         except Exception as e:
             print("sum loss error:", e)
-    # if FIRST_FLAG is False:
-    #     print("|DATA_NUM|\t|", i * config["BATCH_SIZE"])
+
     loss_info = sum(infos["loss"]) / len(infos["loss"])
     acc = [np.average(np.abs(np.array(i) - np.array(ii)).flatten()) for i, ii in zip(infos["out"], infos["label"])]
+    if FIRST_FLAG is False:
+        print("|TRAIN_DATA_NUM|\t|", len(acc) * config["BATCH_SIZE"])
+        FIRST_FLAG = True
     acc = 1 - sum(acc) / len(acc)
     return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc
 

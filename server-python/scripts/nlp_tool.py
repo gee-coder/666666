@@ -96,7 +96,9 @@ def transform_data2id(data: list, data_dict: dict):
     for samples in data:
         samples = samples.replace("\n", "").split("|")
         for sample in samples:
-            container.append(data_dict[sample])
+            # tmp = data_dict[sample] if sample in data_dict else 0
+            tmp = data_dict[sample]
+            container.append(tmp)
     return container
 
 
