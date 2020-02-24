@@ -8,7 +8,7 @@ from typing import List
 from scripts.os_tool import generate_json_file
 
 
-def add_separator_in_words(words: List[str]) -> str:
+def add_separator_in_words(words: List[List[str]]) -> List[str]:
     """
     为分词数据增加分隔符
     :param words:List[str] 输入数据
@@ -17,7 +17,8 @@ def add_separator_in_words(words: List[str]) -> str:
     Example:
     '今天|天气|怎么样' = add_separator_in_list(['今天', '天气', '怎么样'])
     """
-    container = "|".join(words).replace("|\n", "")
+
+    container = ["|".join(word).replace("|\n", "") for word in words]
     return container
 
 
@@ -85,7 +86,7 @@ def generate_index_in_data(data_file, save_index_path):
 # generate_index_in_data(r"D:\a13\server-python\example_data\key_i.txt", r"D:\a13\server-python\example_data")
 
 
-def transform_data2id(data: list, data_dict: dict):
+def transform_data2id(data: List[str], data_dict: dict):
     """
     转换数据为对应数字索引号
     :param data: list 原始数据
@@ -93,12 +94,9 @@ def transform_data2id(data: list, data_dict: dict):
     :return: 转换后的数据
     """
     container = []
-    for samples in data:
-        samples = samples.replace("\n", "").split("|")
-        for sample in samples:
-            # tmp = data_dict[sample] if sample in data_dict else 0
-            tmp = data_dict[sample]
-            container.append(tmp)
+    for sample in data:
+        tmp = data_dict[sample]
+        container.append(tmp)
     return container
 
 

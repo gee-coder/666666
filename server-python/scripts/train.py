@@ -8,7 +8,7 @@ import os
 import paddle.fluid as fluid
 import numpy as np
 
-from scripts.sampleNN import SampleNN
+from scripts.ASNN import ASNN
 from scripts.preprocess import reader
 from scripts.os_tool import GLog
 
@@ -43,7 +43,7 @@ with fluid.program_guard(train_program, start_up_program):
     virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
     virtual_n_input = fluid.data("virtual_n", shape=[-1], dtype="int64", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
-    net = SampleNN().main_network(sentence_input, keyword_input, sentence_n, keyword_n, virtual_input)
+    net = ASNN().main_network(sentence_input, keyword_input, sentence_n, keyword_n, virtual_input)
     # fluid.layers.Print(net)
 
     cost = fluid.layers.square_error_cost(net, scores_label)
