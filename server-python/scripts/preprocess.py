@@ -244,9 +244,9 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
                 key_word_f_voc = transform_data2id(key_word_f, voc_dict)
                 for input_text_f, score in zip(input_f_texts, scores):
                     input_text_f_voc = transform_data2id(input_text_f, voc_dict)
-                    key_f_voc = np.array(key_f_voc).astype("flaot32")
-                    key_word_f_voc = np.array(key_word_f_voc).astype("flaot32")
-                    input_text_f_voc = np.array(input_text_f_voc).astype("flaot32")
+                    key_f_voc = np.array(key_f_voc).reshape(1, 1024).astype("flaot32")
+                    key_word_f_voc = np.array(key_word_f_voc).reshape(1, 1024).astype("flaot32")
+                    input_text_f_voc = np.array(input_text_f_voc).reshape(1, 1024).astype("flaot32")
                     score = np.array(score / 10).reshape([1]).astype("float32")
                     yield key_f_voc, key_word_f_voc, input_text_f_voc, score
             except BaseException as e:

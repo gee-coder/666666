@@ -16,8 +16,6 @@ from scripts.os_tool import GLog
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/demo_data.csv")
-INDEX_GPACK = os.path.join(ROOT_PATH, "example_data/index_i.gpack")
-INDEX_N_GPACK = os.path.join(ROOT_PATH, "example_data/index_n.gpack")
 config = {
     "EPOCHE_NUM": 5,
     "BATCH_SIZE": 16,
@@ -36,18 +34,14 @@ controller = fluid.Executor(place)
 start_up_program = fluid.Program()
 train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
-    sentence_input = fluid.data("sentence", shape=[-1], dtype="int64", lod_level=1)
-    sentence_n = fluid.data("sentence_n", shape=[-1], dtype="int64", lod_level=1)
-    keyword_input = fluid.data("keyword", shape=[-1], dtype="int64", lod_level=1)
-    keyword_n = fluid.data("keyword_n", shape=[-1], dtype="int64", lod_level=1)
-    virtual_input = fluid.data("virtual", shape=[-1], dtype="int64", lod_level=1)
-    virtual_n_input = fluid.data("virtual_n", shape=[-1], dtype="int64", lod_level=1)
+    ori_key_f_vec = fluid.data("ori_key_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
+    keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
+    virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
-    net = ASNN().main_network(sentence_input, keyword_input, sentence_n, keyword_n, virtual_input)
+    asnn = ASNN()
+    asnn.main_network(ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
     # fluid.layers.Print(net)
-
-    cost = fluid.layers.square_error_cost(net, scores_label)
-    loss = fluid.layers.mean(cost)
+    loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)
 
     # learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
@@ -60,8 +54,8 @@ with fluid.program_guard(train_program, start_up_program):
     optimizer.minimize(loss)
 
 # feed data
-train_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False)
-val_reader = reader(DATA_CSV, INDEX_GPACK, INDEX_N_GPACK, debug=False, is_val=True)
+train_reader = reader(DATA_CSV, debug=False)
+val_reader = reader(DATA_CSV, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(

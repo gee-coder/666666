@@ -75,11 +75,18 @@ class ASNN:
         self.mode = mode
         self.fc_size = fc_size
 
-    def main_network(self, key_f_voc, key_word_f_voc, input_text_f_voc):
+    def main_network(self, key_f_vec, key_word_f_vec, virtual_input_f_vec):
+        """
+
+        :param key_f_vec: 原始答案分词VEC
+        :param key_word_f_vec: 答案关键字分词VEC
+        :param virtual_input_f_vec: 模拟输入分词VEC
+        :return:
+        """
         # 此处可删
-        a_ipt = fc_with_name(key_f_voc, self.fc_size, "a_ipt")
-        b_ipt = fc_with_name(key_word_f_voc, self.fc_size, "b_ipt")
-        c_ipt = fc_with_name(input_text_f_voc, self.fc_size, "c_ipt")
+        a_ipt = fc_with_name(key_f_vec, self.fc_size, "a_ipt")
+        b_ipt = fc_with_name(key_word_f_vec, self.fc_size, "b_ipt")
+        c_ipt = fc_with_name(virtual_input_f_vec, self.fc_size, "c_ipt")
         # 双向GRU网络
         a_gru1 = sample_gru_layer(a_ipt, self.fc_size, "a_gru1")
         b_gru1 = sample_gru_layer(b_ipt, self.fc_size, "b_gru1")
@@ -96,7 +103,7 @@ class ASNN:
         cost_a = fluid.layers.square_error_cost(self.a_out, a_score)
         cost_c = fluid.layers.square_error_cost(self.c_out, score)
         cost = cost_a + cost_c
-        loss = fluid.layers.mean(cost)
+        loss = fluid.layers.mean(cost) * 0.5
         return loss
 
 
