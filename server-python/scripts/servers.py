@@ -23,18 +23,18 @@ class Server:
         """
         self.server_list = []
         self.port = port
-        use_gpu = " --use_gpu " + str(use_gpu).lower() + "--gpu " + str(gpu_index) if use_gpu else " "
+        use_gpu = " --use_gpu --gpu " + str(gpu_index) if use_gpu else " "
         use_multiprocess = " --use_multiprocess " + str(use_multiprocess).lower() if use_multiprocess else ""
         self.command = "hub serving start" + \
                        " --port " + str(port) + \
                        use_gpu + \
-                       use_multiprocess + \
-                       "--modules"
+                       " " + use_multiprocess + \
+                       " --modules"
         self.bert_command = "hub serving start bert_service" + \
-                            " --port " + str(port + 1) + \
+                            " --port " + str(port) + \
                             use_gpu + \
-                            use_multiprocess + \
-                            "--modules ernie_tiny"
+                            " " + use_multiprocess + \
+                            " --modules ernie_tiny"
 
     def add_lac_server(self, version: str = None):
         command = " lac"

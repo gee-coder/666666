@@ -6,8 +6,6 @@
 from scripts.servers import Server
 
 if __name__ == '__main__':
-    server = Server()
-
+    server = Server(use_gpu=True)
     server.add_lac_server()
-    # server.start_ernie_tiny()
     server.start_servers(debug=True)

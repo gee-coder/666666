@@ -185,6 +185,9 @@ class DataEnhancement:
 # print(a.req_data(0))
 # pass
 
+client1 = Client(server_addr="127.0.0.1:6888", lac=True)
+client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
+
 
 def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: bool = True):
     """
@@ -195,7 +198,6 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
     :param train_rate: 训练集比例
     :return: reader对象
     """
-    client = Client(ernie_tiny=True, lac=True)
 
     with open(data_csv, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -205,8 +207,8 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
         for item_id, item in enumerate(line):
             data[item_id].append(item)
     # 分词处理
-    key_n_f_data, key_f_data = client.send_to_lac_client(data[0])
-    key_word_n_f_data, key_word_f_data = client.send_to_lac_client(data[1])
+    key_n_f_data, key_f_data = client1.send_to_lac_client(data[0])
+    key_word_n_f_data, key_word_f_data = client1.send_to_lac_client(data[1])
     key_n_f_data = add_separator_in_words(key_n_f_data)
     key_f_data = add_separator_in_words(key_f_data)
     key_word_n_f_data = add_separator_in_words(key_word_n_f_data)
@@ -230,23 +232,23 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
             try:
                 samples = data_enhancement.req_data(index)
                 # 打包获取词向量
-                packs = []
+                pack = set(key_f + key_word_f)
                 input_texts = [i[0] for i in samples]
                 scores = [i[1] for i in samples]
-                _, input_f_texts = client.send_to_lac_client(input_texts)
-                for input_text in input_f_texts:
-                    pack = list(set(key_f + key_word_f + input_text))
-                    packs.append(pack)
-                voc_dict = client.send_to_ernie_tiny_client(packs)
-                voc_dict = dict((i, ii) for i, ii in zip(packs, voc_dict))
+                _, input_texts_f = client1.send_to_lac_client(input_texts)
+                for input_text in input_texts_f:
+                    pack.update(input_text)
+                packs = [[i] for i in pack]
+                voc_dict = client2.send_to_ernie_tiny_client(packs)
+                voc_dict = dict((i[0], ii) for i, ii in zip(packs, voc_dict))
                 # 转换为词向量
                 key_f_voc = transform_data2id(key_f, voc_dict)
                 key_word_f_voc = transform_data2id(key_word_f, voc_dict)
-                for input_text_f, score in zip(input_f_texts, scores):
+                for input_text_f, score in zip(input_texts_f, scores):
                     input_text_f_voc = transform_data2id(input_text_f, voc_dict)
-                    key_f_voc = np.array(key_f_voc).reshape(1, 1024).astype("flaot32")
-                    key_word_f_voc = np.array(key_word_f_voc).reshape(1, 1024).astype("flaot32")
-                    input_text_f_voc = np.array(input_text_f_voc).reshape(1, 1024).astype("flaot32")
+                    key_f_voc = np.array(key_f_voc).reshape(-1, 1024).astype("float32")
+                    key_word_f_voc = np.array(key_word_f_voc).reshape(-1, 1024).astype("float32")
+                    input_text_f_voc = np.array(input_text_f_voc).reshape(-1, 1024).astype("float32")
                     score = np.array(score / 10).reshape([1]).astype("float32")
                     yield key_f_voc, key_word_f_voc, input_text_f_voc, score
             except BaseException as e:

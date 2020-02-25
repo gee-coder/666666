@@ -39,7 +39,7 @@ with fluid.program_guard(train_program, start_up_program):
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     asnn = ASNN()
-    asnn.main_network(ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
+    net = asnn.main_network(ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
     # fluid.layers.Print(net)
     loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)
@@ -59,16 +59,17 @@ val_reader = reader(DATA_CSV, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
-    feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "virtual_n", "scores"],
+    feed_list=['ori_key_f_vec', "keyword_f_vec", 'virtual_input_f_vec', "scores"],
     place=place,
     program=train_program)
 val_feeder = fluid.DataFeeder(
-    feed_list=['sentence', "keyword", 'sentence_n', "keyword_n", "virtual", "virtual_n", "scores"],
+    feed_list=['ori_key_f_vec', "keyword_f_vec", 'virtual_input_f_vec', "scores"],
     place=place,
     program=train_program)
 
 # init log
 config["val_acc"] = None
+config["val_fitness"] = None
 config["seed"] = None
 log = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2")
 log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None}, file_name="data_log")
@@ -95,11 +96,14 @@ def controller_process(program, data_reader, feeder):
     if FIRST_FLAG is False:
         print("|TRAIN_DATA_NUM|\t|", len(acc) * config["BATCH_SIZE"])
         FIRST_FLAG = True
-    acc = 1 - sum(acc) / len(acc)
-    return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc
+    tmp = sum(acc) / len(acc)
+    acc = 1 - tmp
+    fitness = 1 - tmp * 2 if tmp * 2 <= 1 else tmp
+    return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc, fitness
 
 
 val_acc = 0
+val_fitness = 0
 controller.run(start_up_program)
 for epoch in range(config["EPOCHE_NUM"]):
     train_info = controller_process(train_program, train_reader, train_feeder)
@@ -107,10 +111,12 @@ for epoch in range(config["EPOCHE_NUM"]):
     log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     val_acc += val_info[2]
+    val_fitness += val_info[3]
 
 config["seed"] = train_program.random_seed
 config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
+config["val_fitness"] = "{:4f} %".format(val_fitness / config["EPOCHE_NUM"] * 100)
 
-log.write_log(config, message="tanh+3xfc 1 relu")
+log.write_log(config, message="V3")
 
-print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])
+print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"], "\tFitness:\t", config["val_fitness"])
