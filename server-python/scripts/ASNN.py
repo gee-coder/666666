@@ -29,21 +29,6 @@ def fc_with_name(ipt, fc_size: int, name: str, act: str = None, is_test: bool = 
     return tmp
 
 
-def sample_gru_layer(ipt, fc_size: int, name: str):
-    tmp = ipt
-    for i in range(3):
-        tmp = fluid.layers.dynamic_gru(input=tmp,
-                                       size=fc_size // 3,
-                                       is_reverse=(i % 2) != 0,
-                                       param_attr=ParamAttr(name=name + '_gru_w_' + str(i)),
-                                       bias_attr=ParamAttr(name=name + '_gru_b_' + str(i)))
-        tmp = fluid.layers.fc(input=tmp,
-                              size=fc_size,
-                              param_attr=ParamAttr(name=name + '_after_gru_fc_w_' + str(i)),
-                              bias_attr=ParamAttr(name=name + '_after_fc_b_' + str(i)))
-    return tmp
-
-
 def out_layers(ipt, name: str, is_test: bool = False):
     tmp = ipt
     # tmp = fc_with_name(tmp, 128, name + "_out1_", act="relu", is_test=is_test)
@@ -58,23 +43,34 @@ class ASNN:
 
     def __init__(self, mode: int = 1, fc_size: int = 300):
         self.mode = mode
-        self.fc_size = fc_size
-        self.att_size = 3
+        self.hidden_size = fc_size
+        self.att_size = 32
 
-    def keyword_extraction_with_attention(self, ipt_a, ipt_b, ipt_c):
-        a_kea = fc_with_name([ipt_a, ipt_b], self.att_size * 10, "kea", "softmax")
-        c_kea = fc_with_name([ipt_c, ipt_b], self.att_size * 10, "kea", "softmax", is_test=True)
-        a_fc = fc_with_name(ipt_a, self.att_size * 10, "kea_fc")
-        c_fc = fc_with_name(ipt_b, self.att_size * 10, "kea_fc", is_test=True)
-        out_a = fluid.layers.elementwise_mul(a_kea, a_fc)
-        out_c = fluid.layers.elementwise_mul(c_kea, c_fc)
-        return out_a, out_c
-
-    def attention(self, ipt, name: str):
-        ipt = fc_with_name(ipt, self.att_size, name + "_attention_ipt", "relu")
-        attention = fc_with_name(ipt, self.att_size, name + "_attention_w", "softmax")
-        out = fluid.layers.elementwise_mul(ipt, attention)
+    def sample_gru_layer(self, ipt):
+        gru = ipt
+        for i in range(3):
+            fc = fluid.layers.fc(input=gru,
+                                 size=self.hidden_size)
+            gru = fluid.layers.dynamic_gru(input=fc,
+                                           size=self.hidden_size // 3,
+                                           is_reverse=(i % 2) != 0)
+        out = gru
         return out
+
+    def keyword_extraction_with_attention(self, ipt, w, name: str):
+        kea = fc_with_name(ipt, self.att_size, name + "_kea")
+        pool = fluid.layers.sequence_pool(input=kea, pool_type='max')
+        kea = fluid.layers.elementwise_mul(pool, w)
+        return kea
+
+    def attention(self, ipt_a, ipt_b, name: str):
+        ipt_a = fluid.layers.sequence_conv(ipt_a, 32)
+        ipt_b = fluid.layers.sequence_conv(ipt_b, 32)
+        pool = fluid.layers.sequence_pool(input=ipt_a, pool_type='max')
+        pool_b = fluid.layers.sequence_pool(input=ipt_b, pool_type='max')
+        conv_concat = fluid.layers.concat([pool, pool_b], axis=1)
+        kea2 = fc_with_name(conv_concat, self.att_size, name + "_kw2", "softmax")
+        return kea2
 
     def main_network(self, key_f_vec, key_word_f_vec, virtual_input_f_vec):
         """
@@ -84,22 +80,16 @@ class ASNN:
         :param virtual_input_f_vec: 模拟输入分词VEC
         :return:
         """
-        # 此处可删
-        a_ipt = fc_with_name(key_f_vec, self.fc_size, "a_ipt")
-        b_ipt = fc_with_name(key_word_f_vec, self.fc_size, "b_ipt")
-        c_ipt = fc_with_name(virtual_input_f_vec, self.fc_size, "c_ipt")
         # 双向GRU网络
-        a_gru1 = sample_gru_layer(a_ipt, self.fc_size, "a_gru1")
-        b_gru1 = sample_gru_layer(b_ipt, self.fc_size, "b_gru1")
-        c_gru1 = sample_gru_layer(c_ipt, self.fc_size, "c_gru1")
+        a_gru1 = self.sample_gru_layer(key_f_vec)
+        b_gru1 = self.sample_gru_layer(key_word_f_vec)
+        c_gru1 = self.sample_gru_layer(virtual_input_f_vec)
         # 注意力机制
-        a_attention_w2 = self.attention(a_gru1, "a2")
-        c_attention_w2 = self.attention(c_gru1, "c2")
-        b_fc2 = fc_with_name(b_gru1, self.att_size, "b_2")
-        a_pool3 = fluid.layers.sequence_pool(input=a_attention_w2, pool_type='max')
-        b_pool3 = fluid.layers.sequence_pool(input=b_fc2, pool_type='max')
-        c_pool3 = fluid.layers.sequence_pool(input=c_attention_w2, pool_type='max')
-        a_kea4, c_kea4 = self.keyword_extraction_with_attention(a_pool3, b_pool3, c_pool3)
+        a_attention_w2 = self.attention(a_gru1, b_gru1, "a2")
+        c_attention_w2 = self.attention(c_gru1, b_gru1, "c2")
+        a_kea4 = self.keyword_extraction_with_attention(a_gru1, a_attention_w2, "k")
+        c_kea4 = self.keyword_extraction_with_attention(c_gru1, c_attention_w2, "k")
+
         # 特征融合
         # a_feature_3 = fluid.layers.sequence_pool(input=a_gru1, pool_type='max')
         # b_feature_3 = fluid.layers.sequence_pool(input=b_gru1, pool_type='max')
@@ -119,9 +109,10 @@ class ASNN:
         loss = fluid.layers.mean(cost)
         return loss
 
-# # # debug
-# data = fluid.data(name="test", shape=[-1, 1024], dtype="float32", lod_level=1)
-# s = fluid.data(name="test2", shape=[1], dtype="float32")
-# net = ASNN()
-# net.main_network(data, data, data)
-# net.req_cost(s)
+
+# debug
+data = fluid.data(name="test", shape=[-1, 1024], dtype="float32", lod_level=1)
+s = fluid.data(name="test2", shape=[1], dtype="float32")
+net = ASNN()
+net.main_network(data, data, data)
+net.req_cost(s)

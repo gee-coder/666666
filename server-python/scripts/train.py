@@ -69,7 +69,6 @@ val_feeder = fluid.DataFeeder(
 
 # init log
 config["val_acc"] = None
-config["val_fitness"] = None
 config["seed"] = None
 log = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2")
 log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None}, file_name="data_log")
@@ -98,12 +97,10 @@ def controller_process(program, data_reader, feeder):
         FIRST_FLAG = True
     tmp = sum(acc) / len(acc)
     acc = 1 - tmp
-    fitness = 1 - tmp * 2 if tmp * 2 <= 1 else tmp
-    return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc, fitness
+    return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc
 
 
 val_acc = 0
-val_fitness = 0
 controller.run(start_up_program)
 for epoch in range(config["EPOCHE_NUM"]):
     train_info = controller_process(train_program, train_reader, train_feeder)
@@ -111,7 +108,6 @@ for epoch in range(config["EPOCHE_NUM"]):
     log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
     val_acc += val_info[2]
-    val_fitness += val_info[3]
 
 config["seed"] = train_program.random_seed
 config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
@@ -119,4 +115,4 @@ config["val_fitness"] = "{:4f} %".format(val_fitness / config["EPOCHE_NUM"] * 10
 
 log.write_log(config, message="V3")
 
-print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"], "\tFitness:\t", config["val_fitness"])
+print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])
