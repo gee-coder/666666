@@ -3,15 +3,13 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 
-import time
 import os
 import requests
-import json
-from typing import List
 
-import jieba
-import jieba.posseg as pseg
 from paddlehub.serving.bert_serving import bs_client
+
+import jieba.posseg as pseg
+
 
 
 class Server:
@@ -63,8 +61,7 @@ class Client:
         if lac:
             self.lac = "http://" + server_addr + "/predict/text/lac"
         if jb:
-            self.use_paddle = True
-            jieba.enable_paddle()
+            self.scope = scope
 
     def send_to_ernie_tiny_client(self, inp: list):
         """
@@ -93,16 +90,17 @@ class Client:
         """
         all_tags = []
         all_words = []
-        for i in inp:
-            outs = pseg.cut(i, use_paddle=self.use_paddle)
-            words = []
-            ns = []
-            for w, n in outs:
-                words.append(w)
-                ns.append(n)
-            all_words.append(words)
-            all_tags.append(ns)
-        return all_tags, all_words
+        with fluid.scope_guard(self.scope):
+            for i in inp:
+                outs = pseg.cut(i, use_paddle=True)
+                words = []
+                ns = []
+                for w, n in outs:
+                    words.append(w)
+                    ns.append(n)
+                all_words.append(words)
+                all_tags.append(ns)
+            return all_tags, all_words
 
 # client = Client(lac=True)
 # tmp = client.send_to_lac_client(["天气真的好"])
