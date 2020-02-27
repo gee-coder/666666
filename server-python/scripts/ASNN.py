@@ -91,17 +91,9 @@ class ASNN:
         a_kea4 = self.keyword_extraction_with_attention(a_gru1, a_attention_w2, "k")
         c_kea4 = self.keyword_extraction_with_attention(c_gru1, c_attention_w2, "k")
         # 语义融合
-        sentence_ori = fc_with_name(ori_key_vec, self.att_size, name="sentence_ori")
-        sentence_vir = fc_with_name(ori_key_vec, self.att_size, name="sentence_vir")
-        cos_sim = fluid.layers.cos_sim(sentence_ori, sentence_vir)
+        cos_sim = fluid.layers.cos_sim(ori_key_vec, virtual_input_vec)
         c_vec5 = fluid.layers.elementwise_mul(c_kea4, cos_sim)
 
-        # 特征融合
-        # a_feature_3 = fluid.layers.sequence_pool(input=a_gru1, pool_type='max')
-        # b_feature_3 = fluid.layers.sequence_pool(input=b_gru1, pool_type='max')
-        # c_feature_3 = fluid.layers.sequence_pool(input=c_gru1, pool_type='max')
-        # e_feature_4 = fc_with_name([a_feature_3, b_feature_3], self.att_size, "e_feature_4")
-        # f_feature_4 = fc_with_name([c_feature_3, b_feature_3], self.att_size, "f_feature_4")
         # 输出层
         self.a_out = out_layers(a_kea4, "a_out")
         self.c_out = out_layers(c_vec5, "c_out", is_test=True)
