@@ -15,7 +15,7 @@ from scripts.os_tool import GLog
 # config
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
-DATA_CSV = os.path.join(ROOT_PATH, "example_data/demo_data.csv")
+DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
 config = {
     "EPOCHE_NUM": 5,
     "BATCH_SIZE": 16,

@@ -5,11 +5,11 @@
 
 import os
 import requests
+from typing import List
 
 from paddlehub.serving.bert_serving import bs_client
 
 import jieba.posseg as pseg
-
 
 
 class Server:
@@ -61,7 +61,8 @@ class Client:
         if lac:
             self.lac = "http://" + server_addr + "/predict/text/lac"
         if jb:
-            self.scope = scope
+            # 没想到jieba初始化会与paddle冲突 此处暂时留空
+            pass
 
     def send_to_ernie_tiny_client(self, inp: list):
         """
@@ -70,7 +71,7 @@ class Client:
         """
         return self.ernie_tiny.get_result(input_text=inp)
 
-    def send_to_lac_client(self, inp: list):
+    def send_to_lac_client(self, inp: List[str]):
         """
         :param ["aaa", "bbb", ...]
         :return: [[a,a,a], [b,b,b], ...], [[an,an,an], [bn,bn,bn], ...]
@@ -83,25 +84,26 @@ class Client:
             all_words.append(i["word"])
         return all_tags, all_words
 
-    def run_jb_client(self, inp: list):
+    def run_jb_client(self, inp: List[str], add_n_black=False):
         """
+        如果选择添加空格，则会在词性中替换空格为xxxmxxx
         :param ["aaa", "bbb", ...]
         :return: [[a,a,a], [b,b,b], ...], [[an,an,an], [bn,bn,bn], ...]
         """
         all_tags = []
         all_words = []
-        with fluid.scope_guard(self.scope):
-            for i in inp:
-                outs = pseg.cut(i, use_paddle=True)
-                words = []
-                ns = []
-                for w, n in outs:
-                    words.append(w)
-                    ns.append(n)
-                all_words.append(words)
-                all_tags.append(ns)
-            return all_tags, all_words
+        for i, word in enumerate(inp):
+            add_text = "   一   " if i != len(inp) - 1 and add_n_black else " "
+            outs = pseg.cut(word.replace(" ", add_text), use_paddle=True)
+            words = []
+            ns = []
+            for w, n in outs:
+                words.append(w)
+                ns.append(n)
+            all_words.append(words)
+            all_tags.append(ns)
+        return all_tags, all_words
 
-# client = Client(lac=True)
-# tmp = client.send_to_lac_client(["天气真的好"])
+# client = Client()
+# tmp = client.run_jb_client(["天气真的好   一   啊啊啊"])
 # print(tmp)

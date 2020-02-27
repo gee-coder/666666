@@ -29,22 +29,28 @@ class DataEnhancement:
     数据集增强类
     """
     # 0-5权重值
-    word_weight_l = {"nz": 5.,
-                     "nr": 5.,
-                     "ns": 5.,
-                     "nt": 5.,
-                     "nw": 5.,
-                     "PER": 5.,
-                     "LOC": 5.,
-                     "ROG": 5.,
-                     "TIME": 5.,
-                     "f": 5.,
-                     "s": 5.,
-                     "n": 4.,
-                     "vn": 3.,
-                     "u": 0.,
-                     "w": 0.,
-                     "other": 0.5}
+    word_weight_l = {
+        "f": 5.,
+        "i": 5.,
+        "s": 5.,
+        "n": 4.,
+        "u": 0.,
+        "w": 0.,
+        "b": 5.,
+        "j": 0.,
+        "vn": 3.,
+        "nz": 5.,
+        "nr": 5.,
+        "ns": 5.,
+        "nt": 5.,
+        "nrt": 5.,
+        "nw": 5.,
+        "PER": 5.,
+        "LOC": 5.,
+        "ROG": 5.,
+        "TIME": 5.,
+        "eng": 5.,
+        "other": 0.5}
     # 数据分组数量
     data_group = 5
     # 随机池
@@ -66,8 +72,8 @@ class DataEnhancement:
         self.key_word_data = []
         self.key_word_n_data = []
         for key_words, key_ns in zip(key_word_data, key_word_n_data):
-            key_words = key_words.split("| |")
-            key_ns = key_ns.split("|w|")
+            key_words = key_words.split("| | | |一| | | |")
+            key_ns = key_ns.split("|x|x|x|m|x|x|x|")
             tmp1 = []
             tmp2 = []
             for key_word, key_n in zip(key_words, key_ns):
@@ -103,7 +109,7 @@ class DataEnhancement:
         for key_id, key_n in enumerate(keys_n):
             len_key = len(key_n)
 
-            if len_key < 3:
+            if len_key < 2:
                 # 短词直接替换策略
                 # 第 N 个得分点 - 窗口开始点 - 窗口结束点 , 分数
                 count.append((str(key_id) + "-" + str(0) + "-" + str(len_key), 5))
@@ -160,7 +166,7 @@ class DataEnhancement:
                     rand = random.randint(0, len(tmp) - 1)
                     tmp = tmp[rand]
                     if tmp[0] in sample_text:
-                        sample_text = sample_text.replace(tmp[0], tmp[1])
+                        sample_text = sample_text.replace(tmp[0], tmp[1], 1)
                 score = _check_score(sample_text, keys)
                 done_text.append((sample_text, score * 10))
         else:
@@ -192,6 +198,7 @@ class DataEnhancement:
 
 client1 = Client(server_addr="127.0.0.1:6888", jb=True)
 client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
+# client2 = True
 
 
 def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: bool = True):
@@ -213,7 +220,7 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
             data[item_id].append(item)
     # 分词处理
     key_n_f_data, key_f_data = client1.run_jb_client(data[0])
-    key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1])
+    key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1], add_n_black=True)
     key_n_f_data = add_separator_in_words(key_n_f_data)
     key_f_data = add_separator_in_words(key_f_data)
     key_word_n_f_data = add_separator_in_words(key_word_n_f_data)
@@ -240,7 +247,6 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
                 pack = set(key_f + key_word_f)
                 input_texts = [i[0] for i in samples]
                 scores = [i[1] for i in samples]
-                # _, input_texts_f = client1.send_to_lac_client(input_texts)
                 _, input_texts_f = client1.run_jb_client(input_texts)
                 for input_text in input_texts_f:
                     pack.update(input_text)
@@ -263,7 +269,3 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
                     print(traceback.print_exc())
 
     return generate_data
-
-#
-# a = reader(r"D:\a13\server-python\example_data\demo_data.csv", r"D:\a13\server-python\example_data\demo_index.gpack")
-# pass
