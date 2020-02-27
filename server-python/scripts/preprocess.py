@@ -5,7 +5,6 @@
 
 import traceback
 import random
-import time
 from typing import List
 
 import numpy as np
@@ -31,15 +30,15 @@ class DataEnhancement:
     """
     # 0-5权重值
     word_weight_l = {"nz": 5.,
+                     "nr": 5.,
+                     "ns": 5.,
+                     "nt": 5.,
+                     "nw": 5.,
                      "n": 4.,
                      "vn": 3.,
                      "u": 0.,
                      "w": 0.,
                      "other": 0.5}
-    word_weight_s = {"nz": 1,
-                     "n": 0.5,
-                     "vn": 0.5,
-                     "other": 0.}
     # 数据分组数量
     data_group = 5
     # 随机池
@@ -185,7 +184,7 @@ class DataEnhancement:
 # print(a.req_data(0))
 # pass
 
-client1 = Client(server_addr="127.0.0.1:6888", lac=True)
+client1 = Client(server_addr="127.0.0.1:6888", jb=True)
 client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
 
 
@@ -207,8 +206,8 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
         for item_id, item in enumerate(line):
             data[item_id].append(item)
     # 分词处理
-    key_n_f_data, key_f_data = client1.send_to_lac_client(data[0])
-    key_word_n_f_data, key_word_f_data = client1.send_to_lac_client(data[1])
+    key_n_f_data, key_f_data = client1.run_jb_client(data[0])
+    key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1])
     key_n_f_data = add_separator_in_words(key_n_f_data)
     key_f_data = add_separator_in_words(key_f_data)
     key_word_n_f_data = add_separator_in_words(key_word_n_f_data)
@@ -235,7 +234,8 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
                 pack = set(key_f + key_word_f)
                 input_texts = [i[0] for i in samples]
                 scores = [i[1] for i in samples]
-                _, input_texts_f = client1.send_to_lac_client(input_texts)
+                # _, input_texts_f = client1.send_to_lac_client(input_texts)
+                _, input_texts_f = client1.run_jb_client(input_texts)
                 for input_text in input_texts_f:
                     pack.update(input_text)
                 packs = [[i] for i in pack]

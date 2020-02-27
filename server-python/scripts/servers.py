@@ -9,6 +9,8 @@ import requests
 import json
 from typing import List
 
+import jieba
+import jieba.posseg as pseg
 from paddlehub.serving.bert_serving import bs_client
 
 
@@ -55,16 +57,27 @@ class Server:
 
 
 class Client:
-    def __init__(self, server_addr: str = "127.0.0.1:6888", ernie_tiny=False, lac=False):
+    def __init__(self, server_addr: str = "127.0.0.1:6888", ernie_tiny=False, lac=False, jb=False):
         if ernie_tiny:
             self.ernie_tiny = bs_client.BSClient(module_name="ernie_tiny", server=server_addr)
         if lac:
             self.lac = "http://" + server_addr + "/predict/text/lac"
+        if jb:
+            self.use_paddle = True
+            jieba.enable_paddle()
 
     def send_to_ernie_tiny_client(self, inp: list):
+        """
+        :param ["a", "b",...]
+        :return: [[1x1024], [1x1024], ...]
+        """
         return self.ernie_tiny.get_result(input_text=inp)
 
     def send_to_lac_client(self, inp: list):
+        """
+        :param ["aaa", "bbb", ...]
+        :return: [[a,a,a], [b,b,b], ...], [[an,an,an], [bn,bn,bn], ...]
+        """
         r = requests.post(url=self.lac, data={"text": inp})
         all_tags = []
         all_words = []
@@ -73,6 +86,23 @@ class Client:
             all_words.append(i["word"])
         return all_tags, all_words
 
+    def run_jb_client(self, inp: list):
+        """
+        :param ["aaa", "bbb", ...]
+        :return: [[a,a,a], [b,b,b], ...], [[an,an,an], [bn,bn,bn], ...]
+        """
+        all_tags = []
+        all_words = []
+        for i in inp:
+            outs = pseg.cut(i, use_paddle=self.use_paddle)
+            words = []
+            ns = []
+            for w, n in outs:
+                words.append(w)
+                ns.append(n)
+            all_words.append(words)
+            all_tags.append(ns)
+        return all_tags, all_words
 
 # client = Client(lac=True)
 # tmp = client.send_to_lac_client(["天气真的好"])
