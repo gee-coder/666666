@@ -35,13 +35,13 @@ start_up_program = fluid.Program()
 train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
     ori_key_vec = fluid.data("ori_key_vec", shape=[-1, 1024], dtype="float32")
-    keyword_vec = fluid.data("keyword_vec", shape=[-1, 1024], dtype="float32")
+    virtual_input_vec = fluid.data("virtual_input_vec", shape=[-1, 1024], dtype="float32")
     ori_key_f_vec = fluid.data("ori_key_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     asnn = ASNN()
-    net = asnn.main_network(ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
+    net = asnn.main_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
     # fluid.layers.Print(net)
     loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)
@@ -61,11 +61,11 @@ val_reader = reader(DATA_CSV, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
-    feed_list=["ori_key_vec", "keyword_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
+    feed_list=["ori_key_vec", "virtual_input_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
     place=place,
     program=train_program)
 val_feeder = fluid.DataFeeder(
-    feed_list=["ori_key_vec", "keyword_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
+    feed_list=["ori_key_vec", "virtual_input_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
     place=place,
     program=train_program)
 

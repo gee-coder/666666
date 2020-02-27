@@ -72,9 +72,10 @@ class ASNN:
         kea2 = fc_with_name(conv_concat, self.att_size, name + "_kw2", "softmax")
         return kea2
 
-    def main_network(self, key_f_vec, key_word_f_vec, virtual_input_f_vec):
+    def main_network(self, ori_key_vec, virtual_input_vec, key_f_vec, key_word_f_vec, virtual_input_f_vec):
         """
-
+        :param ori_key_vec: 原始答案VEC
+        :param virtual_input_vec: 模拟输入VEC
         :param key_f_vec: 原始答案分词VEC
         :param key_word_f_vec: 答案关键字分词VEC
         :param virtual_input_f_vec: 模拟输入分词VEC
@@ -89,6 +90,11 @@ class ASNN:
         c_attention_w2 = self.attention(c_gru1, b_gru1, "c2")
         a_kea4 = self.keyword_extraction_with_attention(a_gru1, a_attention_w2, "k")
         c_kea4 = self.keyword_extraction_with_attention(c_gru1, c_attention_w2, "k")
+        # 语义融合
+        sentence_ori = fc_with_name(ori_key_vec, self.att_size, name="sentence_ori")
+        sentence_vir = fc_with_name(ori_key_vec, self.att_size, name="sentence_vir")
+        cos_sim = fluid.layers.cos_sim(sentence_ori, sentence_vir)
+        c_vec5 = fluid.layers.elementwise_mul(c_kea4, cos_sim)
 
         # 特征融合
         # a_feature_3 = fluid.layers.sequence_pool(input=a_gru1, pool_type='max')
@@ -97,8 +103,8 @@ class ASNN:
         # e_feature_4 = fc_with_name([a_feature_3, b_feature_3], self.att_size, "e_feature_4")
         # f_feature_4 = fc_with_name([c_feature_3, b_feature_3], self.att_size, "f_feature_4")
         # 输出层
-        self.a_out = out_layers(a_kea4, "d_out")
-        self.c_out = out_layers(c_kea4, "d_out", is_test=True)
+        self.a_out = out_layers(a_kea4, "a_out")
+        self.c_out = out_layers(c_vec5, "c_out", is_test=True)
         return self.c_out
 
     def req_cost(self, score):
@@ -109,10 +115,9 @@ class ASNN:
         loss = fluid.layers.mean(cost)
         return loss
 
-
-# debug
-data = fluid.data(name="test", shape=[-1, 1024], dtype="float32", lod_level=1)
-s = fluid.data(name="test2", shape=[1], dtype="float32")
-net = ASNN()
-net.main_network(data, data, data)
-net.req_cost(s)
+# # debug
+# data = fluid.data(name="test", shape=[-1, 1024], dtype="float32", lod_level=1)
+# s = fluid.data(name="test2", shape=[1], dtype="float32")
+# net = ASNN()
+# net.main_network(data, data, data)
+# net.req_cost(s)
