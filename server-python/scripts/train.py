@@ -17,11 +17,11 @@ USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
 config = {
-    "EPOCHE_NUM": 5,
-    "BATCH_SIZE": 16,
-    "BOUNDARIES": [500, 2000, 4000],
-    "LR_STEPS": [0.1, 0.01, 0.001, 0.0001],
-    "WARMUP_STEPS": 200,
+    "EPOCHE_NUM": 50,
+    "BATCH_SIZE": 128,
+    "BOUNDARIES": [2000, 5000, 10000, 20000, 40000],
+    "LR_STEPS": [0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001],
+    "WARMUP_STEPS": 2000,
     "START_LR": 0.01,
     "END_LR": 0.1
 }
@@ -34,6 +34,8 @@ controller = fluid.Executor(place)
 start_up_program = fluid.Program()
 train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
+    ori_key_vec = fluid.data("ori_key_vec", shape=[-1, 1024], dtype="float32")
+    keyword_vec = fluid.data("keyword_vec", shape=[-1, 1024], dtype="float32")
     ori_key_f_vec = fluid.data("ori_key_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
@@ -59,11 +61,11 @@ val_reader = reader(DATA_CSV, debug=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
-    feed_list=['ori_key_f_vec', "keyword_f_vec", 'virtual_input_f_vec', "scores"],
+    feed_list=["ori_key_vec", "keyword_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
     place=place,
     program=train_program)
 val_feeder = fluid.DataFeeder(
-    feed_list=['ori_key_f_vec', "keyword_f_vec", 'virtual_input_f_vec', "scores"],
+    feed_list=["ori_key_vec", "keyword_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
     place=place,
     program=train_program)
 
@@ -111,7 +113,6 @@ for epoch in range(config["EPOCHE_NUM"]):
 
 config["seed"] = train_program.random_seed
 config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
-config["val_fitness"] = "{:4f} %".format(val_fitness / config["EPOCHE_NUM"] * 100)
 
 log.write_log(config, message="V3")
 

@@ -197,8 +197,10 @@ class DataEnhancement:
 # pass
 
 client1 = Client(server_addr="127.0.0.1:6888", jb=True)
-client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
-# client2 = True
+# client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
+
+# Debug
+client2 = True
 
 
 def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: bool = True):
@@ -240,7 +242,7 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
         # 开始递归
         for index in index_list:
             key_f = key_f_data[index].split("|")
-            key_word_f = key_word_f_data[index].split("|")
+            key_word_f = key_word_f_data[index].replace("| | | |一| | | |", " ").replace("|", "").split(" ")
             try:
                 samples = data_enhancement.req_data(index)
                 # 打包获取词向量
@@ -251,18 +253,22 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
                 for input_text in input_texts_f:
                     pack.update(input_text)
                 packs = [[i] for i in pack]
-                voc_dict = client2.send_to_ernie_tiny_client(packs)
-                voc_dict = dict((i[0], ii) for i, ii in zip(packs, voc_dict))
+                vec_dict = client2.send_to_ernie_tiny_client(packs)
+                vec_dict = dict((i[0], ii) for i, ii in zip(packs, vec_dict))
                 # 转换为词向量
-                key_f_voc = transform_data2id(key_f, voc_dict)
-                key_word_f_voc = transform_data2id(key_word_f, voc_dict)
+                key_vec = client2.send_to_ernie_tiny_client([["".join(key_f)]])
+                key_f_vec = transform_data2id(key_f, vec_dict)
+                key_word_f_vec = transform_data2id(key_word_f, vec_dict)
                 for input_text_f, score in zip(input_texts_f, scores):
-                    input_text_f_voc = transform_data2id(input_text_f, voc_dict)
-                    key_f_voc = np.array(key_f_voc).reshape(-1, 1024).astype("float32")
-                    key_word_f_voc = np.array(key_word_f_voc).reshape(-1, 1024).astype("float32")
-                    input_text_f_voc = np.array(input_text_f_voc).reshape(-1, 1024).astype("float32")
+                    input_text_vec = client2.send_to_ernie_tiny_client([["".join(input_text_f)]])
+                    input_text_f_vec = transform_data2id(input_text_f, vec_dict)
+                    key_vec = np.array(key_vec).reshape(1, 1024).astype("float32")
+                    input_text_vec = np.array(input_text_vec).reshape(1, 1024).astype("float32")
+                    key_f_vec = np.array(key_f_vec).reshape(-1, 1024).astype("float32")
+                    key_word_f_vec = np.array(key_word_f_vec).reshape(-1, 1024).astype("float32")
+                    input_text_f_vec = np.array(input_text_f_vec).reshape(-1, 1024).astype("float32")
                     score = np.array(score / 10).reshape([1]).astype("float32")
-                    yield key_f_voc, key_word_f_voc, input_text_f_voc, score
+                    yield key_vec, input_text_vec, key_f_vec, key_word_f_vec, input_text_f_vec, score
             except BaseException as e:
                 if debug:
                     print("Data Error!", e)
