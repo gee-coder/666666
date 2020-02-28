@@ -41,7 +41,7 @@ with fluid.program_guard(train_program, start_up_program):
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     asnn = ASNN()
-    net = asnn.main_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
+    net = asnn.define_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
     # fluid.layers.Print(net)
     loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)

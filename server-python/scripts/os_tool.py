@@ -92,7 +92,7 @@ class GLog:
     def write_message(self, *args):
         pack = [str(self.index)]
         for i in args:
-            pack.append("\t" + str(i))
+            pack.append("\t" + str(i) + "\n")
         self.file.writelines(pack)
 
     def close(self):
