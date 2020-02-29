@@ -7,7 +7,6 @@ import os
 
 import paddle.fluid as fluid
 import numpy as np
-
 from scripts.ASNN import ASNN
 from scripts.preprocess import reader
 from scripts.os_tool import GLog
