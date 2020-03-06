@@ -47,6 +47,7 @@ with fluid.program_guard(train_program, start_up_program):
     learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
 
     optimizer = fluid.optimizer.Adam(learning_rate=learning_rate)
+    optimizer = fluid.optimizer.RecomputeOptimizer(optimizer)
     optimizer.minimize(loss)
 
 # feed data
