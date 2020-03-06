@@ -4,8 +4,10 @@
 # Please indicate the source for reprinting.
 
 import os
+import time
 
 import paddle.fluid as fluid
+
 import numpy as np
 from scripts.ASNN import ASNN
 from scripts.preprocess import reader
@@ -16,13 +18,10 @@ USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
 config = {
-    "EPOCHE_NUM": 50,
+    "EPOCHE_NUM": 1000,
     "BATCH_SIZE": 128,
-    "BOUNDARIES": [2000, 5000, 10000, 20000, 40000],
-    "LR_STEPS": [0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001],
-    "WARMUP_STEPS": 2000,
-    "START_LR": 0.01,
-    "END_LR": 0.1
+    "BOUNDARIES": [30, 200, 500, 1000, 3000],
+    "LR_STEPS": [0.01, 0.001, 0.0001, 0.00001, 0.000005,0.000001]
 }
 # environment
 
@@ -45,13 +44,9 @@ with fluid.program_guard(train_program, start_up_program):
     loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)
 
-    # learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
-    #
-    # decayed_lr = fluid.layers.linear_lr_warmup(learning_rate,
-    #                                            config["WARMUP_STEPS"],
-    #                                            config["START_LR"],
-    #                                            config["END_LR"])
-    optimizer = fluid.optimizer.Adam(learning_rate=0.01)
+    learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
+
+    optimizer = fluid.optimizer.Adam(learning_rate=learning_rate)
     optimizer.minimize(loss)
 
 # feed data
@@ -74,11 +69,12 @@ config["seed"] = None
 log = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2")
 log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None}, file_name="data_log")
 FIRST_FLAG = False
+DATA_NUM = 0
 
 
 # define train
 def controller_process(program, data_reader, feeder):
-    global FIRST_FLAG
+    global FIRST_FLAG, DATA_NUM
     infos = {"loss": [], "out": [], "label": []}
     for i, data in enumerate(data_reader()):
         info = controller.run(program=program,
@@ -92,8 +88,10 @@ def controller_process(program, data_reader, feeder):
             print("sum loss error:", e)
 
     loss_info = sum(infos["loss"]) / len(infos["loss"])
-    acc = [np.average(np.abs(np.array(i) - np.array(ii)).flatten()) for i, ii in zip(infos["out"], infos["label"])]
+    acc = [np.average(np.abs(np.round(np.array(i), 1) - np.array(np.array(ii), 1)).flatten()) for i, ii in
+           zip(infos["out"], infos["label"])]
     if FIRST_FLAG is False:
+        DATA_NUM = len(acc) * config["BATCH_SIZE"] / 0.8
         print("|TRAIN_DATA_NUM|\t|", len(acc) * config["BATCH_SIZE"])
         FIRST_FLAG = True
     tmp = sum(acc) / len(acc)
@@ -102,13 +100,20 @@ def controller_process(program, data_reader, feeder):
 
 
 val_acc = 0
+max_val_acc = 0.
 controller.run(start_up_program)
 for epoch in range(config["EPOCHE_NUM"]):
     train_info = controller_process(train_program, train_reader, train_feeder)
+    start_time = time.time()
     val_info = controller_process(val_program, val_reader, val_feeder)
+    avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
     log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
-    print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
+    print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1],
+          "\t|SAMPLE TIME:{:6f}/s".format(avg_sample))
     val_acc += val_info[2]
+    if max_val_acc < val_info[2]:
+        max_val_acc = val_info[2]
+        fluid.io.save_persistables(controller, "./save_params", main_program=train_program)
 
 config["seed"] = train_program.random_seed
 config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
