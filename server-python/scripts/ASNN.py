@@ -82,39 +82,39 @@ class ASNN:
         :return:
         """
 
-        # # classify_sim
-        # self.mode = "cs"
-        # cs_out = self.classify_sim(key_f_vec, key_word_f_vec, virtual_input_f_vec)
-        # # 语义融合
-        # cos_sim = layers.cos_sim(ori_key_vec, virtual_input_vec)
-        # self.out = layers.fc(fluid.layers.elementwise_mul(cs_out, cos_sim), 1)
+        # classify_sim
+        self.mode = "cs"
+        cs_out = self.classify_sim(key_f_vec, key_word_f_vec, virtual_input_f_vec)
+        # 语义融合
+        cos_sim = layers.cos_sim(ori_key_vec, virtual_input_vec)
+        self.out = layers.fc(layers.elementwise_mul(cs_out, cos_sim), 1)
 
-        # kea V4
-
-        # ipt
-        layer_a1, layer_p_a1 = self.sample_gru_layer(key_f_vec, 100, True)
-        layer_b1, layer_p_b1 = self.sample_gru_layer(key_word_f_vec, 100, True)
-        layer_c1, layer_p_c1 = self.sample_gru_layer(virtual_input_f_vec, 100, True)
-        # Road Main
-        layer_w_rm1 = layers.fc([layer_p_a1, layer_p_b1], 3)
-        # Road A
-        sim_ab1 = layers.cos_sim(layer_p_a1, layer_p_a1)
-        sim_cb1 = layers.cos_sim(layer_p_c1, layer_p_a1)
-        out_sim_ra2 = layers.fc([sim_ab1, sim_cb1], 2, act="softmax")
-        out_sim_ra2 = layers.slice(out_sim_ra2, axes=[1], starts=[0], ends=[1])
-        # layer_ab_ra1 = layers.elementwise_mul(layer_p_a1, layer_p_b1)
-        # layer_cb_ra1 = layers.elementwise_mul(layer_p_c1, layer_p_b1)
-        # out_sim_ra3 = layers.cos_sim(layer_ab_ra1, layer_cb_ra1)
-        # Road B
-        layer_ab_rb1 = self.key_attention(layer_a1, layer_b1, layer_p_a1)
-        layer_cb_rb1 = self.key_attention(layer_c1, layer_b1, layer_p_c1)
-        out_sim_rb2 = layers.cos_sim(layer_ab_rb1, layer_cb_rb1)
-        # Road C
-        out_sim_rc1 = layers.cos_sim(ori_key_vec, virtual_input_vec)
-        # Road Out
-        layer_out_abc = layers.concat([out_sim_ra2, out_sim_rb2, out_sim_rc1], axis=1)
-        layer_mul_abc = layers.elementwise_mul(layer_w_rm1, layer_out_abc)
-        self.out = layers.reduce_sum(layer_mul_abc, dim=1, keep_dim=True)
+        # # kea V4
+        #
+        # # ipt
+        # layer_a1, layer_p_a1 = self.sample_gru_layer(key_f_vec, 100, True)
+        # layer_b1, layer_p_b1 = self.sample_gru_layer(key_word_f_vec, 100, True)
+        # layer_c1, layer_p_c1 = self.sample_gru_layer(virtual_input_f_vec, 100, True)
+        # # Road Main
+        # layer_w_rm1 = layers.fc([layer_p_a1, layer_p_b1], 3)
+        # # Road A
+        # sim_ab1 = layers.cos_sim(layer_p_a1, layer_p_a1)
+        # sim_cb1 = layers.cos_sim(layer_p_c1, layer_p_a1)
+        # out_sim_ra2 = layers.fc([sim_ab1, sim_cb1], 2, act="softmax")
+        # out_sim_ra2 = layers.slice(out_sim_ra2, axes=[1], starts=[0], ends=[1])
+        # # layer_ab_ra1 = layers.elementwise_mul(layer_p_a1, layer_p_b1)
+        # # layer_cb_ra1 = layers.elementwise_mul(layer_p_c1, layer_p_b1)
+        # # out_sim_ra3 = layers.cos_sim(layer_ab_ra1, layer_cb_ra1)
+        # # Road B
+        # layer_ab_rb1 = self.key_attention(layer_a1, layer_b1, layer_p_a1)
+        # layer_cb_rb1 = self.key_attention(layer_c1, layer_b1, layer_p_c1)
+        # out_sim_rb2 = layers.cos_sim(layer_ab_rb1, layer_cb_rb1)
+        # # Road C
+        # out_sim_rc1 = layers.cos_sim(ori_key_vec, virtual_input_vec)
+        # # Road Out
+        # layer_out_abc = layers.concat([out_sim_ra2, out_sim_rb2, out_sim_rc1], axis=1)
+        # layer_mul_abc = layers.elementwise_mul(layer_w_rm1, layer_out_abc)
+        # self.out = layers.reduce_sum(layer_mul_abc, dim=1, keep_dim=True)
 
         return self.out
 
