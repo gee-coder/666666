@@ -21,7 +21,7 @@ config = {
     "EPOCHE_NUM": 1000,
     "BATCH_SIZE": 128,
     "BOUNDARIES": [30, 200, 500, 1000, 3000],
-    "LR_STEPS": [0.01, 0.001, 0.0001, 0.00001, 0.000005,0.000001]
+    "LR_STEPS": [0.01, 0.001, 0.0001, 0.00001, 0.000005, 0.000001]
 }
 # environment
 
@@ -38,11 +38,14 @@ with fluid.program_guard(train_program, start_up_program):
     keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
+    loss_tensor = fluid.data(name="loss", shape=[1], dtype="float32")
     asnn = ASNN()
     net = asnn.define_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
-    # fluid.layers.Print(net)
+
+    # create
     loss = asnn.req_cost(scores_label)
     val_program = train_program.clone(for_test=True)
+    # create loss
 
     learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
 
@@ -88,15 +91,24 @@ def controller_process(program, data_reader, feeder):
             print("sum loss error:", e)
 
     loss_info = sum(infos["loss"]) / len(infos["loss"])
-    acc = [np.average(np.abs(np.round(np.array(i), 1) - np.array(np.array(ii), 1)).flatten()) for i, ii in
-           zip(infos["out"], infos["label"])]
+    acc = []
+    acc1 = []
+    acc2 = []
+    for i, ii in zip(infos["out"], infos["label"]):
+        tmp = np.round(np.array(i), 1) - np.round(np.array(ii), 1)
+        tmp = np.abs(tmp.flatten())
+        acc.append(np.average(tmp))
+        acc1.append(len(tmp[tmp <= 0.1]) / len(tmp))
+        acc2.append(len(tmp[tmp <= 0.2]) / len(tmp))
+    acc = sum(acc) / len(acc)
+    acc1 = sum(acc1) / len(acc1)
+    acc2 = sum(acc2) / len(acc2)
     if FIRST_FLAG is False:
-        DATA_NUM = len(acc) * config["BATCH_SIZE"] / 0.8
-        print("|TRAIN_DATA_NUM|\t|", len(acc) * config["BATCH_SIZE"])
+        DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
+        print("|TRAIN_DATA_NUM|\t|", DATA_NUM)
         FIRST_FLAG = True
-    tmp = sum(acc) / len(acc)
-    acc = 1 - tmp
-    return "\t|loss:{:4f}".format(loss_info), "\t|Accuracy:{:.4f} %".format(acc * 100), acc
+    error_rate = 1 - acc
+    return "\t|loss:{:4f}".format(loss_info), "\t|Error Rate:{:.4f} %".format(error_rate * 100), acc1, acc2
 
 
 val_acc = 0
@@ -107,8 +119,9 @@ for epoch in range(config["EPOCHE_NUM"]):
     start_time = time.time()
     val_info = controller_process(val_program, val_reader, val_feeder)
     avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
-    log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1])
-    print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t\t|VAL|", val_info[1],
+    log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1])
+    print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1],
+          "K1:{:2f}".format(val_info[2] * 100), "K2:{:2f}".format(val_info[3] * 100),
           "\t|SAMPLE TIME:{:6f}/s".format(avg_sample))
     val_acc += val_info[2]
     if max_val_acc < val_info[2]:
