@@ -16,7 +16,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,7 +28,7 @@ import java.util.List;
 @RestController
 @CrossOrigin
 public class ReplyController {
-    private Logger logger = LoggerFactory.getLogger(ProblemController.class);
+    private Logger logger = LoggerFactory.getLogger(ReplyController.class);
 
     private final String URL_ROOT = "https://aistudio.baidu.com/";
 
@@ -45,9 +44,9 @@ public class ReplyController {
     }
 
 
-    //添加新回答
-    @RequestMapping(value = "addReply",method = RequestMethod.POST)
-    public String addReply(@RequestBody String str) {
+    //获取系统打分分值
+    @RequestMapping(value = "getSystemScore",method = RequestMethod.POST)
+    public String getSystemScore(@RequestBody String str) {
         logger.info("添加新回答" + str);
         HashMap map = JSON.parseObject(str, HashMap.class);
         //验证请求体中的请求个数与key名是否合法
@@ -69,28 +68,60 @@ public class ReplyController {
             return "{\"code\":\"101\"}";
         }
 
-        //向python接口发送的json类型请求参数
-        String param = "{\"question\":\"" + problem.getQuestion() +
-                "\",\"standardAnswer\":\"" + problem.getStandardAnswer() +
-                "\",\"scoringPoint\":\"" + Arrays.toString(problem.getScoringPoint()) +
-                "\",\"answer\":\"" + answer +
-                "\"}";
-        //请求的参数封装
-        HttpEntity<String> entity = new HttpEntity<>(param, new HttpHeaders());
-        //向URL_ROOT发起post类型请求并携带封装好的参数、传回String集合类型的封装结果
-        ResponseEntity<String> responseEntity = restTemplate.exchange(URL_ROOT + "serving", HttpMethod.POST, entity, String.class);
-        System.out.println(responseEntity.getBody());
+//        //向python接口发送的json类型请求参数
+//        String param = "{\"question\":\"" + problem.getQuestion() +
+//                "\",\"standardAnswer\":\"" + problem.getStandardAnswer() +
+//                "\",\"scoringPoint\":\"" + Arrays.toString(problem.getScoringPoint()) +
+//                "\",\"answer\":\"" + answer +
+//                "\"}";
+//        //请求的参数封装
+//        HttpEntity<String> entity = new HttpEntity<>(param, new HttpHeaders());
+//        //向URL_ROOT发起post类型请求并携带封装好的参数、传回String集合类型的封装结果
+//        ResponseEntity<String> responseEntity = restTemplate.exchange(URL_ROOT + "serving", HttpMethod.POST, entity, String.class);
+//        System.out.println(responseEntity.getBody());
+//
+//        HashMap pythonMap = JSON.parseObject(responseEntity.getBody(), HashMap.class);
+//        if (pythonMap == null) {
+//            logger.warn("python接口请求失败");
+//            return "{\"code\":\"001\"}";
+//        }
+//
+//        Integer systemScore = (Integer) pythonMap.get("systemScore");
 
-        HashMap pythonMap = JSON.parseObject(responseEntity.getBody(), HashMap.class);
-        if (pythonMap == null) {
-            logger.warn("python接口请求失败");
-            return "{\"code\":\"001\"}";
+        //随机生成一个[0-10]的整数num
+        long systemScore = (long) (Math.random() * (10 + 1));
+        return "{\"code\":\"111\", \"systemScore\":" + systemScore + "}";
+    }
+
+
+
+    //添加新回答
+    @RequestMapping(value = "addReply",method = RequestMethod.POST)
+    public String addReply(@RequestBody String str) {
+        logger.info("添加新回答" + str);
+        HashMap map = JSON.parseObject(str, HashMap.class);
+        //验证请求体中的请求个数与key名是否合法
+        String [] jsonKeys = {"questionId", "answer", "systemScore", "score"};
+        if (!(JsonUtil.checkFormatStrict(str , jsonKeys))) {
+            logger.warn("请求体参数格式错误");
+            return "{\"code\":\"000\"}";
         }
 
-        Integer systemScore = (Integer) pythonMap.get("systemScore");
-        String scoringDetailed = (String) pythonMap.get("scoringDetailed");
+        String questionId = (String) map.get("questionId");
+        String answer = (String) map.get("answer");
+        Integer systemScore = (Integer) map.get("systemScore");
+        Integer score = (Integer) map.get("score");
 
-        Reply replyIn = new Reply(questionId, answer, systemScore, scoringDetailed);
+        //作为测试样例不再检验数据合法性
+
+        Problem problem = problemService.findProblemByQuestionId(questionId);
+        //检验题目是否存在
+        if (problem == null) {
+            logger.warn("该题目不存在");
+            return "{\"code\":\"101\"}";
+        }
+
+        Reply replyIn = new Reply(questionId, answer, systemScore, score);
         Reply replyOut = replyService.addReply(replyIn);
         System.out.println(JSON.toJSONString(replyOut));
         logger.info("添加新回答成功");

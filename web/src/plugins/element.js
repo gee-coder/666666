@@ -37,6 +37,8 @@ import {
 	Tag,
 	Link,
 	Divider,
+	Progress,
+	Rate,
 
   } from 'element-ui'
 
@@ -74,6 +76,9 @@ Vue.use(Upload)
 Vue.use(Tag)
 Vue.use(Link)
 Vue.use(Divider)
+Vue.use(Progress)
+Vue.use(Rate)
+
 
 Vue.prototype.$loading = Loading.service;
 Vue.prototype.$message = Message

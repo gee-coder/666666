@@ -1,5 +1,14 @@
 import {request} from "./request.js"
 
+//获取系统打分分值
+export function getSystemScore(data) {
+  return request({
+    url: '/getSystemScore',
+    method: 'post',
+    data
+  })
+}
+
 //添加新回答
 export function addReply(data) {
   return request({

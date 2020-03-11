@@ -33,6 +33,10 @@ const routes = [
       {
         path: '/reply',
         component: () => import('components/reply/Reply.vue')
+      },
+      {
+        path: '/addReply',
+        component: () => import('components/reply/AddReply.vue')
       }
     ]
   },

@@ -20,18 +20,17 @@ public class Reply {
     private String answer;
     //系统打分分值
     private Integer systemScore;
-    //得分详细描述
-    private String scoringDetailed;
-
+    //人工打分分值
+    private Integer score;
 
     public Reply() {
     }
 
-    public Reply(String questionId, String answer, Integer systemScore, String scoringDetailed) {
+    public Reply(String questionId, String answer, Integer systemScore, Integer score) {
         this.questionId = questionId;
         this.answer = answer;
         this.systemScore = systemScore;
-        this.scoringDetailed = scoringDetailed;
+        this.score = score;
     }
 
     public String getAnswerId() {
@@ -66,12 +65,22 @@ public class Reply {
         this.systemScore = systemScore;
     }
 
-    public String getScoringDetailed() {
-        return scoringDetailed;
+    public Integer getScore() {
+        return score;
     }
 
-    public void setScoringDetailed(String scoringDetailed) {
-        this.scoringDetailed = scoringDetailed;
+    public void setScore(Integer score) {
+        this.score = score;
     }
 
+    @Override
+    public String toString() {
+        return "Reply{" +
+                "answerId='" + answerId + '\'' +
+                ", questionId='" + questionId + '\'' +
+                ", answer='" + answer + '\'' +
+                ", systemScore=" + systemScore +
+                ", score=" + score +
+                '}';
+    }
 }

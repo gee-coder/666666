@@ -2,7 +2,7 @@
   <div>
     <!-- 面包屑导航区 -->
     <el-breadcrumb separator-class="el-icon-arrow-right">
-      <el-breadcrumb-item :to="{ path: '/test' }">测试</el-breadcrumb-item>
+      <el-breadcrumb-item :to="{ path: '/test' }">数据总览</el-breadcrumb-item>
       <el-breadcrumb-item>题目管理</el-breadcrumb-item>
       <el-breadcrumb-item>题目列表</el-breadcrumb-item>
     </el-breadcrumb>
@@ -373,7 +373,7 @@
 			点击删除提示框中的确认按钮后执行该删除操作函数
 			*/
 			delProblem(id) {
-			  this.$confirm('是否删除该题目！？', '提示', {
+			  this.$confirm('是否删除该题目及其相关作答记录？', '提示', {
 			    confirmButtonText: '确定',
 			    cancelButtonText: '取消',
 			    type: 'warning'

@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Field;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
@@ -79,13 +80,34 @@ public class ReplyService {
         return this.mongoTemplate.findOne(query, Reply.class, "reply");
     }
 
+    //查找所有问题的指定属性
+    public List<Reply> findAllTheFields(List<String> fields) {
+        Query query = new Query();
+        Field theFields = query.fields();
+
+        /*
+        遍历fields集合，每次循环调用一次theFields的include的方法并将每次遍历的fields元素作为参数传入
+         等价于：
+         for (String field:
+             fields) {
+            theFields.include(field);
+         }
+         */
+        fields.forEach(theFields::include);
+        return this.mongoTemplate.find(query, Reply.class, "reply");
+    }
+
     //通过回答的id删除回答
     public DeleteResult delReplyByAnswerId(String answerId) {
         Query query = new Query(Criteria.where("answerId").is(answerId));
         return this.mongoTemplate.remove(query, Reply.class, "reply");
     }
 
-
+    //通过问题的id删除回答
+    public DeleteResult delReplyByQuestionId(String questionId) {
+        Query query = new Query(Criteria.where("questionId").is(questionId));
+        return this.mongoTemplate.remove(query, Reply.class, "reply");
+    }
 
 
 }

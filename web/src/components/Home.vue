@@ -15,10 +15,9 @@
         <div class="toggle_button" @click="handleToggle">|||</div>
         <!-- 侧边区的菜单区 -->
         <el-menu
-        background-color="#4FC08D"
-        text-color="#555"
-        active-text-color="#FF0"
-        unique-opened
+        background-color="#84B1Ed"
+        text-color="#000"
+        active-text-color="#FFF"
         :collapse="isCollapse"
         :collapse-transition="false"
         router
@@ -26,7 +25,7 @@
         <!-- 一级菜单首页 -->
         <el-menu-item index="/test">
           <i class="el-icon-data-analysis"></i>
-          <span>测试</span>
+          <span>数据总览</span>
         </el-menu-item>
         <!-- 一级菜单 -->
         <el-submenu
@@ -97,6 +96,12 @@
             path: '/reply',
             icon: 'el-icon-edit-outline',
             name: '作答列表',
+          },
+          {
+            id: 220,
+            path: '/addReply',
+            icon: 'el-icon-circle-plus-outline',
+            name: '添加作答',
           }]
         }]
       }
@@ -119,7 +124,7 @@
 
   .el-header {
     // 设置头部主题颜色
-    background-color: #41A863;
+    background-color: #4F86C6;
     // 使头部内的元素两边对齐，内容居中
     display: flex;
     justify-content: space-between;
@@ -136,6 +141,7 @@
       }
 
       span {
+				//系统大表头区域
         // 文本和图片之间的间距20px
         margin-left: 20px;
         // 文本颜色为白色,大小为25px
@@ -148,14 +154,16 @@
 
   .el-aside {
     // 设置侧边栏颜色
-    background-color: #4FC08D;
+    background-color: #84B1Ed;
 
    .toggle_button {
       // 设置侧边栏开关背景颜色
-      background-color: #4FC08D;
+      background-color: #84B1Ed;
       font-size: 10px;
       line-height: 24px;
-      color: #fff;
+			// color: #F4EA2A;
+			// 设置侧边栏开关颜色
+      color: #000;
       text-align: center;
       //文本按钮‘|’之间的间距
       letter-spacing: 0.2em;
@@ -171,7 +179,7 @@
 
   .el-main {
     // 设置主体内容颜色
-    background-color: #FFFAE8;
+    background-color: #D4DFE6;
   }
 
 </style>

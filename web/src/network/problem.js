@@ -1,19 +1,6 @@
 import {request} from "./request.js"
 import store from "../store/index.js"
 
-//获取得分点
-    // 类型： post
-    // 参数： question，standardAnswer
-    // 返回： scoringPoint
-export function getScoringPoint(data) {
-  return request({
-		baseURL: store.state.PSHAP,
-    url: '/未知',
-    method: 'post',
-    data
-  })
-}
-
 //添加新题目
 export function addProblem(data) {
   return request({
@@ -41,7 +28,7 @@ export function findLikes(data) {
   })
 }
 
-//修改书信息
+//修改题目信息
 export function alterProblem(data) {
   return request({
     url: '/alterProblem',
@@ -50,7 +37,7 @@ export function alterProblem(data) {
   })
 }
 
-//删除书
+//删除题目
 export function deleteProblem(data) {
   return request({
     url: '/delProblemByQuestionId',
@@ -59,10 +46,18 @@ export function deleteProblem(data) {
   })
 }
 
-//删除书
+//随机获取一道题目
 export function getARandomProblem() {
   return request({
     url: '/getARandomProblem',
+    method: 'get'
+  })
+}
+
+//添加新题目
+export function initTest() {
+  return request({
+    url: '/initTest',
     method: 'get'
   })
 }
