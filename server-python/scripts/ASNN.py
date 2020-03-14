@@ -10,6 +10,8 @@ import paddle.fluid.layers as layers
 import paddle.fluid.initializer as parm_init
 from paddle.fluid.param_attr import ParamAttr
 
+ignore_loss_max = 0.15
+
 
 def fc_with_name(ipt, fc_size: int, name: str, act: str = None, is_test: bool = False):
     lr = 1.0 if is_test else 0
@@ -29,15 +31,6 @@ def out_layers(ipt, name: str, is_test: bool = False):
     return tmp
 
 
-def count_loss(ipt_a, ipt_b):
-    a = np.array(ipt_a)
-    b = np.array(ipt_b)
-    cost = np.abs(a - b) - 1
-    cost = np.round(cost, 1)
-    loss = np.mean(cost)
-    return loss
-
-
 def key_attention(ipt_a, ipt_b, ipt_c):
     sim_ab = layers.cos_sim(ipt_a, ipt_b)
     sim_cb = layers.cos_sim(ipt_a, ipt_c)
@@ -46,10 +39,27 @@ def key_attention(ipt_a, ipt_b, ipt_c):
     return out
 
 
+def _gt_score_loss(out_score, target_loss):
+    out_score = np.array(out_score)
+    target_loss = np.array(target_loss)
+    cost = np.square(out_score - target_loss)
+    cost[cost < np.square(ignore_loss_max)] = 0.
+    return cost
+
+
+def _backward_gt_score(out_score, target_score, loss, d_higher):
+    out_score = np.array(out_score)
+    target_score = np.array(target_score)
+    d_higher = np.array(d_higher)
+    d_out = 2 * (out_score - target_score)
+    d_out[abs(d_out) < ignore_loss_max * 0.5] = 0.
+    return d_higher * d_out, 0
+
+
 class ASNN:
-    a_out = None
-    c_out = None
-    out = None
+    layers_out = None
+    scores = None
+    ignore_loss_max = 0.15
 
     def __init__(self, mode: int = 1, fc_size: int = 300):
         self.mode = mode
@@ -113,14 +123,17 @@ class ASNN:
         # Road Out
         layer_out_abc = layers.concat([out_sim_ra2, out_sim_rb, out_sim_rc1], axis=1)
         layer_mul_abc = layers.elementwise_mul(layer_w_rm1, layer_out_abc)
-        self.out = layers.reduce_sum(layer_mul_abc, dim=1, keep_dim=True)
+        self.layers_out = layers.reduce_sum(layer_mul_abc, dim=1, keep_dim=True)
 
-        return self.out
+        return self.layers_out
 
-    def req_cost(self, score):
-        cost = layers.smooth_l1(self.out, score)
-        loss = layers.mean(cost)
-        return loss
+    def req_cost(self, program, score):
+        loss = program.current_block().create_var(name="loss_tmp", dtype="float32", shape=[1])
+        layers.py_func(func=_gt_score_loss,
+                       x=[self.layers_out, score],
+                       out=loss,
+                       backward_func=_backward_gt_score)
+        return layers.mean(loss)
 
 # # debug
 # import paddle.fluid as fluid

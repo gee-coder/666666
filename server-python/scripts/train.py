@@ -38,12 +38,11 @@ with fluid.program_guard(train_program, start_up_program):
     keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
-    loss_tensor = fluid.data(name="loss", shape=[1], dtype="float32")
     asnn = ASNN()
     net = asnn.define_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
 
     # create
-    loss = asnn.req_cost(scores_label)
+    loss = asnn.req_cost(train_program, scores_label)
     val_program = train_program.clone(for_test=True)
     # create loss
 
@@ -70,7 +69,7 @@ val_feeder = fluid.DataFeeder(
 config["val_acc"] = None
 config["seed"] = None
 log = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2")
-log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None}, file_name="data_log")
+log2 = GLog(gpack_path=ROOT_PATH + "/config", item_heads={"loss": None, "acc": None})
 FIRST_FLAG = False
 DATA_NUM = 0
 
@@ -95,12 +94,12 @@ def controller_process(program, data_reader, feeder):
     acc1 = []
     acc2 = []
     for i, ii in zip(infos["out"], infos["label"]):
-        tmp = np.round(np.array(i), 1) - np.round(np.array(ii), 1)
-        tmp = np.abs(tmp.flatten())
+        tmp = np.round(np.array(i).reshape(-1), 1) - np.round(np.array(ii).reshape(-1), 1)
+        tmp = np.abs(tmp)
         error_rate.append(np.average(tmp))
         acc1.append(len(tmp[tmp <= 0.1]) / len(tmp))
         acc2.append(len(tmp[tmp <= 0.2]) / len(tmp))
-    acc = sum(error_rate) / len(error_rate)
+    error_rate = sum(error_rate) / len(error_rate)
     acc1 = sum(acc1) / len(acc1)
     acc2 = sum(acc2) / len(acc2)
     if FIRST_FLAG is False:
