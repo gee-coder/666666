@@ -2,7 +2,7 @@
   <div>
     <!-- 面包屑导航区 -->
     <el-breadcrumb separator-class="el-icon-arrow-right">
-      <el-breadcrumb-item :to="{ path: '/test' }">测试</el-breadcrumb-item>
+      <el-breadcrumb-item :to="{ path: '/test' }">数据总览</el-breadcrumb-item>
       <el-breadcrumb-item>题目管理</el-breadcrumb-item>
       <el-breadcrumb-item>添加题目</el-breadcrumb-item>
     </el-breadcrumb>
@@ -78,7 +78,7 @@
         </el-tab-pane>
         <el-tab-pane label="完成" name="3">
 					恭喜您！新题目添加成功！
-					<el-link type="primary" href="/addProblem">继续添加新题</el-link>
+					<el-link type="primary" href="/addProblem">继续添加</el-link>
 					</el-tab-pane>
       </el-tabs>
       </el-form>
@@ -88,7 +88,6 @@
 
 <script>
 	import {
-		getScoringPoint,
 	  addProblem,
 	  } from "network/problem.js"
 	
@@ -157,35 +156,6 @@
         if ((newIndex - oldIndex === 1) && (this.haveValue(oldIndex))) {
 					if (oldIndex === '1') {
 						return true;
-						// //跳转到得分点前先等待
-						// let loading = this.$loading({
-						//  lock: true,
-						//  text: '正在生成推荐得分点...',
-						//  spinner: 'el-icon-loading',
-						//  background: 'rgba(144, 147, 153, 0.8)'
-						// })
-						// //获取关键字
-						// getScoringPoint({
-						// 	question: this.form.question,
-						// 	standardAnswer: this.form.standardAnswer,
-						// }).then(res => {
-						// 	console.log(res)
-						// 	loading.close()
-						// 	if(res.status !== 200) {
-						// 		this.$message.error('请求失败！')
-						// 		return false;
-						// 	} else {
-						// 		if(res.data.code === "111") {
-						// 			this.$message.success('推荐得分点生成成功！')
-						// 			return true;
-						// 		}
-						// 	}
-						// }).catch(err => {
-						// console.log(err)
-						// loading.close()
-						// this.$message.error('请求失败！')
-						// return false;
-						// })
 					} else if (oldIndex === '2') {
 						//提交最终表单
 						addProblem({

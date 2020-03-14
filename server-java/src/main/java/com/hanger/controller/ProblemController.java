@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.hanger.entity.Problem;
 import com.hanger.service.ProblemService;
+import com.hanger.service.ReplyService;
 import com.hanger.util.JsonUtil;
 import com.mongodb.client.result.DeleteResult;
 import org.slf4j.Logger;
@@ -24,10 +25,12 @@ public class ProblemController {
     private Logger logger = LoggerFactory.getLogger(ProblemController.class);
 
     private final ProblemService problemService;
+    private final ReplyService replyService;
 
     @Autowired
-    public ProblemController(ProblemService problemService) {
+    public ProblemController(ProblemService problemService, ReplyService replyService) {
         this.problemService = problemService;
+        this.replyService = replyService;
     }
 
 
@@ -165,8 +168,11 @@ public class ProblemController {
             return "{\"code\":\"111\"}";
         }
 
-        DeleteResult deleteResult = problemService.delProblemByQuestionId(questionId);
-        if (deleteResult.getDeletedCount() <= 0) {
+        DeleteResult deleteProblemResult = problemService.delProblemByQuestionId(questionId);
+        //删除该问题的所有回答记录
+        DeleteResult deleteReplyResult = replyService.delReplyByQuestionId(questionId);
+        System.out.println("删除题目相关回答记录" + deleteReplyResult.getDeletedCount() + "条");
+        if (deleteProblemResult.getDeletedCount() <= 0) {
             logger.warn("题目删除失败");
             return "{\"code\":\"404\"}";
         } else {
