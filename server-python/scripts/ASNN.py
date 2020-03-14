@@ -38,6 +38,14 @@ def count_loss(ipt_a, ipt_b):
     return loss
 
 
+def key_attention(ipt_a, ipt_b, ipt_c):
+    sim_ab = layers.cos_sim(ipt_a, ipt_b)
+    sim_cb = layers.cos_sim(ipt_a, ipt_c)
+    out = layers.fc([sim_ab, sim_cb], 2, act="softmax")
+    out = layers.slice(out, axes=[1], starts=[0], ends=[1])
+    return out
+
+
 class ASNN:
     a_out = None
     c_out = None
@@ -59,26 +67,11 @@ class ASNN:
             return out, p_out
         return out
 
-    def key_attention(self, ipt_a, ipt_b, ipt_ap):
-        conv_a1 = layers.sequence_conv(ipt_a, 64)
-        conv_b1 = layers.sequence_conv(ipt_b, 64)
-        conv_a2 = layers.sequence_conv(conv_a1, 128)
-        conv_b2 = layers.sequence_conv(conv_b1, 128)
-        pool_a = layers.sequence_pool(conv_a2, pool_type="max")
-        pool_b = layers.sequence_pool(conv_b2, pool_type="max")
-        weight = layers.fc([pool_a, pool_b], 100)
-        layer1 = layers.softmax(weight)
-        layer2 = layers.elementwise_mul(ipt_ap, layer1)
-        return layer2
-
     def classify_sim(self, ipt_a, ipt_b, ipt_c):
         _, gru_vec_a = self.sample_gru_layer(ipt_a, 100, True)
         _, gru_vec_b = self.sample_gru_layer(ipt_b, 100, True)
         _, gru_vec_c = self.sample_gru_layer(ipt_c, 100, True)
-        sim_ab = layers.cos_sim(gru_vec_a, gru_vec_b)
-        sim_cb = layers.cos_sim(gru_vec_c, gru_vec_b)
-        out = layers.fc([sim_ab, sim_cb], 2, act="softmax")
-        out = layers.slice(out, axes=[1], starts=[0], ends=[2])
+        out = key_attention(gru_vec_a, gru_vec_b, gru_vec_c)
         return out
 
     def define_network(self, ori_key_vec, virtual_input_vec, key_f_vec, key_word_f_vec, virtual_input_f_vec):
@@ -114,13 +107,11 @@ class ASNN:
         # layer_cb_ra1 = layers.elementwise_mul(layer_p_c1, layer_p_b1)
         # out_sim_ra3 = layers.cos_sim(layer_ab_ra1, layer_cb_ra1)
         # Road B
-        layer_ab_rb1 = self.key_attention(layer_a1, layer_b1, layer_p_a1)
-        layer_cb_rb1 = self.key_attention(layer_c1, layer_b1, layer_p_c1)
-        out_sim_rb2 = layers.cos_sim(layer_ab_rb1, layer_cb_rb1)
+        out_sim_rb = key_attention(layer_p_a1, layer_p_b1, layer_p_c1)
         # Road C
         out_sim_rc1 = layers.cos_sim(ori_key_vec, virtual_input_vec)
         # Road Out
-        layer_out_abc = layers.concat([out_sim_ra2, out_sim_rb2, out_sim_rc1], axis=1)
+        layer_out_abc = layers.concat([out_sim_ra2, out_sim_rb, out_sim_rc1], axis=1)
         layer_mul_abc = layers.elementwise_mul(layer_w_rm1, layer_out_abc)
         self.out = layers.reduce_sum(layer_mul_abc, dim=1, keep_dim=True)
 

@@ -91,23 +91,22 @@ def controller_process(program, data_reader, feeder):
             print("sum loss error:", e)
 
     loss_info = sum(infos["loss"]) / len(infos["loss"])
-    acc = []
+    error_rate = []
     acc1 = []
     acc2 = []
     for i, ii in zip(infos["out"], infos["label"]):
         tmp = np.round(np.array(i), 1) - np.round(np.array(ii), 1)
         tmp = np.abs(tmp.flatten())
-        acc.append(np.average(tmp))
+        error_rate.append(np.average(tmp))
         acc1.append(len(tmp[tmp <= 0.1]) / len(tmp))
         acc2.append(len(tmp[tmp <= 0.2]) / len(tmp))
-    acc = sum(acc) / len(acc)
+    acc = sum(error_rate) / len(error_rate)
     acc1 = sum(acc1) / len(acc1)
     acc2 = sum(acc2) / len(acc2)
     if FIRST_FLAG is False:
         DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
         print("|TRAIN_DATA_NUM|\t|", DATA_NUM)
         FIRST_FLAG = True
-    error_rate = 1 - acc
     return "\t|loss:{:4f}".format(loss_info), "\t|Error Rate:{:.4f} %".format(error_rate * 100), acc1, acc2
 
 
@@ -121,7 +120,7 @@ for epoch in range(config["EPOCHE_NUM"]):
     avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
     log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1])
     print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1],
-          "K1:{:2f}".format(val_info[2] * 100), "K2:{:2f}".format(val_info[3] * 100),
+          "\t|K1:{:2f}%".format(val_info[2] * 100), "|K2:{:2f}%".format(val_info[3] * 100),
           "\t|SAMPLE TIME:{:6f}/s".format(avg_sample))
     val_acc += val_info[2]
     if max_val_acc < val_info[2]:
