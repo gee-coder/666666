@@ -52,7 +52,7 @@ def _backward_gt_score(out_score, target_score, loss, d_higher):
     target_score = np.array(target_score)
     d_higher = np.array(d_higher)
     d_out = 2 * (out_score - target_score)
-    d_out[abs(d_out) < ignore_loss_max * 0.5] = 0.
+    d_out[abs(d_out) < ignore_loss_max * 2] = 0.
     return d_higher * d_out, 0
 
 

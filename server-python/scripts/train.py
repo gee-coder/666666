@@ -106,7 +106,7 @@ def controller_process(program, data_reader, feeder):
         DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
         print("|TRAIN_DATA_NUM|\t|", DATA_NUM)
         FIRST_FLAG = True
-    return "\t|loss:{:4f}".format(loss_info), "\t|Error Rate:{:.4f} %".format(error_rate * 100), acc1, acc2
+    return "\t|loss:{:.4f}".format(loss_info), "\t|Error Rate:{:.4f} %".format(error_rate * 100), acc1, acc2
 
 
 val_acc = 0
@@ -119,15 +119,15 @@ for epoch in range(config["EPOCHE_NUM"]):
     avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
     log2.write_message("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1])
     print("|TRAIN|\t|Epoch:", epoch, train_info[0], train_info[1], "|\t|VAL|", val_info[1],
-          "\t|K1:{:2f}%".format(val_info[2] * 100), "|K2:{:2f}%".format(val_info[3] * 100),
-          "\t|SAMPLE TIME:{:6f}/s".format(avg_sample))
+          "\t|K1:{:.2f}%".format(val_info[2] * 100), "|K2:{:.2f}%".format(val_info[3] * 100),
+          "\t|SAMPLE TIME:{:.6f}/s".format(avg_sample))
     val_acc += val_info[2]
     if max_val_acc < val_info[2]:
         max_val_acc = val_info[2]
         fluid.io.save_persistables(controller, "./save_params", main_program=train_program)
 
 config["seed"] = train_program.random_seed
-config["val_acc"] = "{:4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
+config["val_acc"] = "{:.4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
 
 log.write_log(config, message="V3")
 
