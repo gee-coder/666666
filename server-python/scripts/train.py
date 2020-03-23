@@ -9,14 +9,19 @@ import time
 import paddle.fluid as fluid
 
 import numpy as np
-from scripts.ASNN import ASNN
+from scripts.CSNN import CSNN
 from scripts.preprocess import reader
 from scripts.os_tool import GLog
+
+import logging as log
+
+log.basicConfig(level=log.DEBUG,
+                format='%(asctime)s: %(message)s')
 
 # config
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
-DATA_CSV = os.path.join(ROOT_PATH, "example_data/data.csv")
+DATA_CSV = os.path.join(ROOT_PATH, "example_data/dgdata.csv")
 config = {
     "EPOCHE_NUM": 1000,
     "BATCH_SIZE": 128,
@@ -32,17 +37,23 @@ controller = fluid.Executor(place)
 start_up_program = fluid.Program()
 train_program = fluid.Program()
 with fluid.program_guard(train_program, start_up_program):
-    ori_key_vec = fluid.data("ori_key_vec", shape=[-1, 1024], dtype="float32")
-    virtual_input_vec = fluid.data("virtual_input_vec", shape=[-1, 1024], dtype="float32")
-    ori_key_f_vec = fluid.data("ori_key_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
-    keyword_f_vec = fluid.data("keyword_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
-    virtual_input_f_vec = fluid.data("virtual_input_f_vec", shape=[-1, 1024], dtype="float32", lod_level=1)
+    ori_input_ids = fluid.data("ori_input_ids", shape=[-1, 128, 1], dtype="int64")
+    ori_position_ids = fluid.data("ori_position_ids", shape=[-1, 128, 1], dtype="int64")
+    ori_segment_ids = fluid.data("ori_segment_ids", shape=[-1, 128, 1], dtype="int64")
+    ori_input_mask = fluid.data("ori_input_mask", shape=[-1, 128, 1], dtype="float32")
+
+    input_ids = fluid.data("input_ids", shape=[-1, 128, 1], dtype="int64")
+    position_ids = fluid.data("position_ids", shape=[-1, 128, 1], dtype="int64")
+    segment_ids = fluid.data("segment_ids", shape=[-1, 128, 1], dtype="int64")
+    input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
+
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
-    asnn = ASNN()
-    net = asnn.define_network(ori_key_vec, virtual_input_vec, ori_key_f_vec, keyword_f_vec, virtual_input_f_vec)
+    csnn = CSNN()
+    net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
+                              segment_ids, input_mask)
 
     # create
-    loss = asnn.req_cost(train_program, scores_label)
+    loss = csnn.req_cost(train_program, scores_label)
     val_program = train_program.clone(for_test=True)
     # create loss
 
@@ -52,16 +63,18 @@ with fluid.program_guard(train_program, start_up_program):
     optimizer.minimize(loss)
 
 # feed data
-train_reader = reader(DATA_CSV, debug=False)
-val_reader = reader(DATA_CSV, debug=False, is_val=True)
+train_reader = reader(DATA_CSV, is_none_pre=False)
+val_reader = reader(DATA_CSV, is_none_pre=False, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
-    feed_list=["ori_key_vec", "virtual_input_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
+    feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
+               "segment_ids", "input_mask", "scores"],
     place=place,
     program=train_program)
 val_feeder = fluid.DataFeeder(
-    feed_list=["ori_key_vec", "virtual_input_vec", "ori_key_f_vec", "keyword_f_vec", "virtual_input_f_vec", "scores"],
+    feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
+               "segment_ids", "input_mask", "scores"],
     place=place,
     program=train_program)
 
@@ -112,6 +125,10 @@ def controller_process(program, data_reader, feeder):
 val_acc = 0
 max_val_acc = 0.
 controller.run(start_up_program)
+# 读取预训练模型
+fluid.io.load_vars(controller, os.path.join(ROOT_PATH, "ERNIE/Lparams"), main_program=train_program)
+fluid.io.load_vars(controller, os.path.join(ROOT_PATH, "ERNIE/Rparams"), main_program=train_program)
+
 for epoch in range(config["EPOCHE_NUM"]):
     train_info = controller_process(train_program, train_reader, train_feeder)
     start_time = time.time()

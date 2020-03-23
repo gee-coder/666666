@@ -6,7 +6,9 @@
 import traceback
 import random
 from typing import List
+import logging as log
 
+import paddlehub as hub
 import numpy as np
 from scripts.servers import Client
 from scripts.nlp_tool import add_separator_in_words, transform_data2id
@@ -137,10 +139,12 @@ class DataEnhancement:
             ori_word = ""
             new_word = ""
             for k, n in zip(key[info[1]:info[2]], key_n[info[1]:info[2]]):
-                tmp = list(self.pool[n])
-                if k in tmp:
-                    tmp.remove(k)
-
+                try:
+                    tmp = list(self.pool[n])
+                    if k in tmp:
+                        tmp.remove(k)
+                except KeyError:
+                    continue
                 if len(tmp) == 0:
                     continue
                 else:
@@ -197,16 +201,25 @@ class DataEnhancement:
 # pass
 
 client1 = Client(server_addr="127.0.0.1:6888", jb=True)
-# client2 = Client(server_addr="127.0.0.1:6889", ernie_tiny=True)
 
-# Debug
-client2 = True
+log.info("\033[0;32m Load vocab...")
+text_transform = hub.reader.ClassifyReader(
+    dataset=None,
+    vocab_path=r"D:\a13\server-python\ERNIE\vocab.txt",
+    max_seq_len=128,
+    sp_model_path=r"D:\a13\server-python\ERNIE/spm_cased_simp_sampled.model",
+    word_dict_path=r"D:\a13\server-python\ERNIE/dict.wordseg.pickle")
+log.info("\033[0;32m Load vocab ready")
+log.info("\033[0;32m load cache dataset ipt")
 
 
-def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: bool = True):
+def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_rate: float = 0.8):
     """
     数据生成器
-    :param debug: 是否显示数据集错误
+    :param is_none_pre: 启动无增强方案，不推荐在FineTune时设置为False启动增强！
+    数据集格式
+    True  答案，模拟答案
+    False 答案，模拟答案，分数
     :param data_csv: csv所在位置
     :param is_val: 是否返回为测试集
     :param train_rate: 训练集比例
@@ -220,58 +233,53 @@ def reader(data_csv: str, is_val: bool = False, train_rate: float = 0.8, debug: 
         line = line.split(",")
         for item_id, item in enumerate(line):
             data[item_id].append(item)
-    # 分词处理
-    key_n_f_data, key_f_data = client1.run_jb_client(data[0])
-    key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1], add_n_black=True)
-    key_n_f_data = add_separator_in_words(key_n_f_data)
-    key_f_data = add_separator_in_words(key_f_data)
-    key_word_n_f_data = add_separator_in_words(key_word_n_f_data)
-    key_word_f_data = add_separator_in_words(key_word_f_data)
-    data_enhancement = DataEnhancement(key_data=key_f_data,
-                                       key_n_data=key_n_f_data,
-                                       key_word_data=key_word_f_data,
-                                       key_word_n_data=key_word_n_f_data)
 
-    def generate_data():
-        # 数据集划分
-        all_index_list = [i for i in range(len(data_enhancement))]
-        train_list = all_index_list[:int(len(data_enhancement) * train_rate)]
-        val_list = all_index_list[int(len(data_enhancement) * train_rate):]
-        # 选择数据集
-        index_list = val_list if is_val else train_list
-        # 开始递归
-        for index in index_list:
-            key_f = key_f_data[index].split("|")
-            key_word_f = key_word_f_data[index].replace("| | | |一| | | |", " ").replace("|", "").split(" ")
-            try:
+    def generate():
+        if not is_none_pre:
+            # 分词处理
+            key_n_f_data, key_f_data = client1.run_jb_client(data[0])
+            key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1], add_n_black=True)
+            key_n_f_data = add_separator_in_words(key_n_f_data)
+            key_f_data = add_separator_in_words(key_f_data)
+            key_word_n_f_data = add_separator_in_words(key_word_n_f_data)
+            key_word_f_data = add_separator_in_words(key_word_f_data)
+            data_enhancement = DataEnhancement(key_data=key_f_data,
+                                               key_n_data=key_n_f_data,
+                                               key_word_data=key_word_f_data,
+                                               key_word_n_data=key_word_n_f_data)
+            all_index_list = [i for i in range(len(data_enhancement))]
+            train_list = all_index_list[:int(len(data_enhancement) * train_rate)]
+            val_list = all_index_list[int(len(data_enhancement) * train_rate):]
+            # 选择数据集
+            index_list = val_list if is_val else train_list
+            # 开始递归
+            for index in index_list:
+                ori_key = data[0][index]
                 samples = data_enhancement.req_data(index)
-                # 打包获取词向量
-                pack = set(key_f + key_word_f)
-                input_texts = [i[0] for i in samples]
-                scores = [i[1] for i in samples]
-                _, input_texts_f = client1.run_jb_client(input_texts)
-                for input_text in input_texts_f:
-                    pack.update(input_text)
-                packs = [[i] for i in pack]
-                vec_dict = client2.send_to_ernie_tiny_client(packs)
-                vec_dict = dict((i[0], ii) for i, ii in zip(packs, vec_dict))
-                # 转换为词向量
-                key_vec = client2.send_to_ernie_tiny_client([["".join(key_f)]])
-                key_f_vec = transform_data2id(key_f, vec_dict)
-                key_word_f_vec = transform_data2id(key_word_f, vec_dict)
-                for input_text_f, score in zip(input_texts_f, scores):
-                    input_text_vec = client2.send_to_ernie_tiny_client([["".join(input_text_f)]])
-                    input_text_f_vec = transform_data2id(input_text_f, vec_dict)
-                    key_vec = np.array(key_vec).reshape(1, 1024).astype("float32")
-                    input_text_vec = np.array(input_text_vec).reshape(1, 1024).astype("float32")
-                    key_f_vec = np.array(key_f_vec).reshape(-1, 1024).astype("float32")
-                    key_word_f_vec = np.array(key_word_f_vec).reshape(-1, 1024).astype("float32")
-                    input_text_f_vec = np.array(input_text_f_vec).reshape(-1, 1024).astype("float32")
-                    score = np.array(score / 10).reshape([1]).astype("float32")
-                    yield key_vec, input_text_vec, key_f_vec, key_word_f_vec, input_text_f_vec, score
-            except BaseException as e:
-                if debug:
-                    print("Data Error!", e)
-                    print(traceback.print_exc())
-
-    return generate_data
+                ipt_keys = [[i[0]] for i in samples]
+                ipt_scores = [i[1] for i in samples]
+                ori_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[ori_key]])()
+                ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
+                transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=ipt_keys)()
+                for score, transform_out in zip(ipt_scores, transform_outs):
+                    input_ids, position_ids, segment_ids, input_mask = transform_out[0]
+                    score = np.array(score / 10).astype("float32").reshape(1, 1)
+                    yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids, segment_ids, input_mask, score
+        else:
+            all_index_list = [i for i in range(len(data[0]))]
+            train_list = all_index_list[:int(len(data[0]) * train_rate)]
+            val_list = all_index_list[int(len(data[0]) * train_rate):]
+            # 选择数据集
+            index_list = val_list if is_val else train_list
+            for index in index_list:
+                ori_key = data[0][index]
+                sample = data[1][index]
+                score = data[2][index]
+                ori_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[ori_key]])()
+                ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
+                transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[sample]])()
+                input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
+                score = np.array(score / 10).astype("float32").reshape(1, 1)
+                yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids, segment_ids, input_mask, score
+    return generate
+# reader(r"D:\a13\server-python\example_data\dgdata.csv")

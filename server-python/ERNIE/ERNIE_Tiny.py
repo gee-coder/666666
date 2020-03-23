@@ -5,7 +5,7 @@
 
 
 import paddle.fluid as fluid
-from scripts.ERNIE.transformer_encoder import encoder, pre_process_layer
+from ERNIE.transformer_encoder import encoder, pre_process_layer
 
 
 class ErnieModel(object):

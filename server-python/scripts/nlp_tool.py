@@ -5,6 +5,7 @@
 
 from typing import List
 
+from paddlehub.reader.nlp_reader import BaseNLPReader
 from scripts.os_tool import generate_json_file
 
 
@@ -112,3 +113,5 @@ def transform_id2data(data_id: list, data_dict: dict):
     for sample in data_id:
         container.append(tmp_dict[sample])
     return container
+
+
