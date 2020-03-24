@@ -3,6 +3,9 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 
-import logging as log
+import numpy as np
 
-print('This is a \033[1;35m test')
+acc = dict((i, []) for i in range(3))
+tmp = np.array([0.1, 0., 0.2])
+acc[0].append((len(tmp[tmp <= 0 * 0.1 + 0.1]) - len(tmp[tmp <= 0 * 0.1])) / len(tmp))
+print(acc)

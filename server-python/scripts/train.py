@@ -19,6 +19,10 @@ USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/dgdata.csv")
+# VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
+VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
+F_NUM = 3
+
 config = {
     "EPOCHE_NUM": 1000,
     "BATCH_SIZE": 2,
@@ -105,24 +109,25 @@ def controller_process(program, data_reader, feeder):
 
     loss_info = sum(infos["loss"]) / len(infos["loss"])
     error_rate = []
-    acc1 = []
-    acc2 = []
+    acc = dict((i, []) for i in range(F_NUM))
     for i, ii in zip(infos["out"], infos["label"]):
         tmp = np.round(np.array(i).reshape(-1), 1) - np.round(np.array(ii).reshape(-1), 1)
         tmp = np.abs(tmp)
         error_rate.append(np.average(tmp))
-        acc1.append(len(tmp[tmp <= 0.1]) / len(tmp))
-        acc2.append(len(tmp[tmp <= 0.2]) / len(tmp))
+        for f in range(F_NUM):
+            acc[f].append((len(tmp[tmp <= f * 0.1 + 0.1]) - len(tmp[tmp <= f * 0.1])) / len(tmp))
     error_rate = sum(error_rate) / len(error_rate)
-    acc1 = sum(acc1) / len(acc1)
-    acc2 = sum(acc2) / len(acc2)
+    for i in acc.keys():
+        acc[i] = sum(acc[i]) / len(acc[i])
     if FIRST_FLAG is False:
         DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
-        log.info("|TRAIN_DATA_NUM|\t|" + str(DATA_NUM))
+        log.info("\033[1;31m|TRAIN_DATA_NUM|\t|" + str(DATA_NUM) + "\033[0m")
         FIRST_FLAG = True
     msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Error Rate:{:.4f} %".format(
-        error_rate * 100) + "\t|K1:{:.2f}%".format(acc1 * 100) + "|K2:{:.2f}%".format(acc2 * 100)
-    return msg, acc2
+        error_rate * 100)
+    for i in acc.keys():
+        msg += "\t|K" + str(i + 1) + ":{:.2f}%".format(acc[i] * 100)
+    return msg, 1 - error_rate
 
 
 val_acc = 0
@@ -134,23 +139,22 @@ load_params_num = []
 
 # 读取预训练模型
 def if_exist(var):
-    if os.path.exists(os.path.join(ROOT_PATH, "ERNIE/params", var.name)):
+    if os.path.exists(os.path.join(VARS_PATH, var.name)):
         load_params_num.append(1)
-    return os.path.exists(os.path.join(ROOT_PATH, "ERNIE/params", var.name))
+    return os.path.exists(os.path.join(VARS_PATH, var.name))
 
 
-fluid.io.load_vars(controller, os.path.join(ROOT_PATH, "ERNIE/params"),
-                   main_program=train_program, predicate=if_exist)
-log.info(msg="\033[1;31m 读取" + str(len(load_params_num)) + "组参数，若参数量低于100，请检查配置文件 \033[0m!")
+fluid.io.load_vars(controller, VARS_PATH, main_program=train_program, predicate=if_exist)
+log.info(msg="\033[1;31m读取" + str(len(load_params_num)) + "组参数，若参数量低于100，请检查配置文件 \033[0m")
 
 for epoch in range(config["EPOCHE_NUM"]):
     train_info, _ = controller_process(train_program, train_reader, train_feeder)
     start_time = time.time()
     val_info, val_acc = controller_process(val_program, val_reader, val_feeder)
     avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
-    log.info("\033[1;35m |EPOCH:" + str(epoch) + "\t|SAMPLE TIME:{:.6f}/s".format(avg_sample)+"\033[0m!")
-    log.info("\033[1;34m |TRAIN:" + train_info + "\033[0m!")
-    log.info("\033[1;34m |VAL:" + val_info + "\033[0m!")
+    log.info("\033[1;35m|EPOCH:" + str(epoch) + "\t|SAMPLE TIME:{:.6f}/s".format(avg_sample) + "\033[0m")
+    log.info("\033[1;34m|TRAIN:" + train_info + "\033[0m")
+    log.info("\033[1;34m|VAL:" + val_info + "\033[0m")
     if max_val_acc < val_acc:
         max_val_acc = val_acc
         fluid.io.save_persistables(controller, "./save_params", main_program=train_program)
