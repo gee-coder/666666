@@ -8,7 +8,7 @@
 import numpy as np
 import paddle.fluid as fluid
 import paddle.fluid.layers as layers
-from ERNIE.ERNIE_Tiny import ErnieModel
+from ERNIE.ERNIE_Tiny import ErnieModel, ErnieConfig
 
 ignore_loss_max = 0.15
 
@@ -31,17 +31,29 @@ def _backward_gt_score(out_score, target_score, loss, d_higher):
 
 
 class CSNN:
+    conf_path = None
 
     def __init__(self):
         self.layers_out = None
 
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
                        r_src_ids, r_position_ids, r_sentence_ids, r_input_mask):
+        conf = ErnieConfig(self.conf_path)
         with fluid.unique_name.guard('L'):
-            l_model = ErnieModel(l_src_ids, l_position_ids, l_sentence_ids, l_input_mask)
+            l_model = ErnieModel(l_src_ids,
+                                 l_position_ids,
+                                 l_sentence_ids,
+                                 task_ids=None,
+                                 input_mask=l_input_mask,
+                                 config=conf)
             l_pool_feature = l_model.get_pooled_output()
         with fluid.unique_name.guard('R'):
-            r_model = ErnieModel(r_src_ids, r_position_ids, r_sentence_ids, r_input_mask)
+            r_model = ErnieModel(r_src_ids,
+                                 r_position_ids,
+                                 r_sentence_ids,
+                                 task_ids=None,
+                                 input_mask=r_input_mask,
+                                 config=conf)
             r_pool_feature = r_model.get_pooled_output()
         sim = layers.cos_sim(l_pool_feature, r_pool_feature)
         self.layers_out = layers.fc(sim, 1, name="csnn_out")
