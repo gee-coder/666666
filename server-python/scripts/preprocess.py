@@ -260,11 +260,15 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 ipt_scores = [i[1] for i in samples]
                 ori_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[ori_key]])()
                 ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
+                ori_sentence = ori_input_ids[ori_input_ids > 0]
                 transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=ipt_keys)()
                 for score, transform_out in zip(ipt_scores, transform_outs):
                     input_ids, position_ids, segment_ids, input_mask = transform_out[0]
                     score = np.array(score / 10).astype("float32").reshape(1, 1)
-                    yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids, segment_ids, input_mask, score
+                    sentence = input_ids[input_ids > 0]
+                    yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
+                          position_ids, segment_ids, input_mask, ori_sentence, sentence, score
+
         else:
             all_index_list = [i for i in range(len(data[0]))]
             train_list = all_index_list[:int(len(data[0]) * train_rate)]
@@ -279,7 +283,11 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
                 transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[sample]])()
                 input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
+                ori_sentence = ori_input_ids[ori_input_ids > 0]
+                sentence = input_ids[input_ids > 0]
                 score = np.array(score / 10).astype("float32").reshape(1, 1)
-                yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids, segment_ids, input_mask, score
+                yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
+                      position_ids, segment_ids, input_mask, ori_sentence, sentence, score
+
     return generate
 # reader(r"D:\a13\server-python\example_data\dgdata.csv")

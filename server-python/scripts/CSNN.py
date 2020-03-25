@@ -9,7 +9,7 @@ import numpy as np
 import paddle.fluid.layers as layers
 from ERNIE.ERNIE_Tiny import ErnieModel, ErnieConfig
 
-ignore_loss_max = 0.05
+ignore_loss_max = 0.15
 
 
 def _gt_score_loss(out_score, target_loss):
@@ -30,21 +30,43 @@ def _backward_gt_score(out_score, target_score, loss, d_higher):
 
 
 def kea_layer(ipt_a, ipt_b):
-    def tmp_layers(ipt):
-        tmp = layers.fc(ipt, 512)
+    def input_layers(ipt):
+        emb = layers.embedding(ipt, [50006, 1024], is_sparse=True)
+        tmp_f = layers.fc(emb, 300)
+        tmp_b = layers.fc(emb, 300)
+        tmp_f = layers.dynamic_gru(tmp_f, 100)
+        tmp_b = layers.dynamic_gru(tmp_b, 100, is_reverse=True)
+        tmp = layers.fc([tmp_b, tmp_f], 300)
         tmp = layers.fc(tmp, 128)
+        tmp = layers.sequence_pool(tmp, "max")
         return tmp
 
-    conv_a = tmp_layers(ipt_a)
-    conv_b = tmp_layers(ipt_b)
-    div = layers.elementwise_div(conv_b, conv_a)
-    return div
+    def conv_layers(ipt):
+        emb = layers.embedding(ipt, [50006, 1024], is_sparse=True)
+        tmp_f = layers.sequence_conv(emb, 32, act="relu")
+        tmp_f = layers.sequence_conv(tmp_f, 64, act="relu")
+        tmp_f = layers.sequence_conv(tmp_f, 128, act="relu")
+        tmp_f = layers.sequence_conv(tmp_f, 256, act="relu")
+        tmp_f = layers.sequence_conv(tmp_f, 512, act="relu")
+        tmp = layers.fc(tmp_f, 300)
+        tmp = layers.fc(tmp, 128)
+        tmp = layers.sequence_pool(tmp, "max")
+        return tmp
+
+    ra_a = input_layers(ipt_a)
+    ra_b = input_layers(ipt_b)
+    rb_a = conv_layers(ipt_a)
+    rb_b = conv_layers(ipt_b)
+    sim_a = layers.fc([ra_a, ra_b], 32)
+    sim_b = layers.fc([rb_a, rb_b], 32)
+    out = layers.fc([sim_a, sim_b], 1)
+    return out
 
 
 def keb_layer(ipt_a, ipt_b):
     def tmp_layers(ipt):
         tmp = layers.fc(ipt, 512)
-        tmp = layers.fc(tmp, 128)
+        tmp = layers.fc(tmp, 256)
         return tmp
 
     conv_a = tmp_layers(ipt_a)
@@ -61,7 +83,8 @@ class CSNN:
         self.layers_out = None
 
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
-                       r_src_ids, r_position_ids, r_sentence_ids, r_input_mask):
+                       r_src_ids, r_position_ids, r_sentence_ids, r_input_mask,
+                       ori_sentence, sentence):
         conf = ErnieConfig(self.conf_path)
         l_model = ErnieModel(l_src_ids,
                              l_position_ids,
@@ -70,7 +93,6 @@ class CSNN:
                              input_mask=l_input_mask,
                              config=conf)
         l_pool_feature = l_model.get_pooled_output()
-        l_seq_feature = l_model.get_sequence_output()
         r_model = ErnieModel(r_src_ids,
                              r_position_ids,
                              r_sentence_ids,
@@ -78,19 +100,20 @@ class CSNN:
                              input_mask=r_input_mask,
                              config=conf)
         r_pool_feature = r_model.get_pooled_output()
-        r_seq_feature = r_model.get_sequence_output()
 
-        word_feature_div = kea_layer(l_seq_feature, r_seq_feature)
+        word_feature = kea_layer(ori_sentence, sentence)
         sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
-        self.layers_out = layers.fc([word_feature_div, sentence_sim], 1, name="csnn_out")
+        out = layers.elementwise_mul(word_feature, sentence_sim, 1)
+        self.layers_out = layers.fc(out, 1, name="csnn_out")
         return self.layers_out
 
     def req_cost(self, program, score):
-        loss = program.current_block().create_var(name="cosnn_loss_tmp", dtype="float32", shape=[1])
-        layers.py_func(func=_gt_score_loss,
-                       x=[self.layers_out, score],
-                       out=loss,
-                       backward_func=_backward_gt_score)
+        # loss = program.current_block().create_var(name="cosnn_loss_tmp", dtype="float32", shape=[1])
+        # layers.py_func(func=_gt_score_loss,
+        #                x=[self.layers_out, score],
+        #                out=loss,
+        #                backward_func=_backward_gt_score)
+        loss = layers.smooth_l1(self.layers_out, score)
         return layers.mean(loss)
 
 # debug

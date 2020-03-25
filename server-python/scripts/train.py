@@ -46,17 +46,18 @@ with fluid.program_guard(train_program, start_up_program):
     ori_position_ids = fluid.data("ori_position_ids", shape=[-1, 128, 1], dtype="int64")
     ori_segment_ids = fluid.data("ori_segment_ids", shape=[-1, 128, 1], dtype="int64")
     ori_input_mask = fluid.data("ori_input_mask", shape=[-1, 128, 1], dtype="float32")
-
+    ori_sentence = fluid.data("ori_sentence", shape=[-1, 1], dtype="int64", lod_level=1)
     input_ids = fluid.data("input_ids", shape=[-1, 128, 1], dtype="int64")
     position_ids = fluid.data("position_ids", shape=[-1, 128, 1], dtype="int64")
     segment_ids = fluid.data("segment_ids", shape=[-1, 128, 1], dtype="int64")
     input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
+    sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
 
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
     csnn = CSNN()
     csnn.conf_path = ERNIE_CONF_PATH
     net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
-                              segment_ids, input_mask)
+                              segment_ids, input_mask, ori_sentence, sentence)
 
     # create
     loss = csnn.req_cost(train_program, scores_label)
@@ -75,12 +76,12 @@ train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), bat
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
     feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
-               "segment_ids", "input_mask", "scores"],
+               "segment_ids", "input_mask", "ori_sentence", "sentence", "scores"],
     place=place,
     program=train_program)
 val_feeder = fluid.DataFeeder(
     feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
-               "segment_ids", "input_mask", "scores"],
+               "segment_ids", "input_mask", "ori_sentence", "sentence", "scores"],
     place=place,
     program=train_program)
 
@@ -115,7 +116,7 @@ def controller_process(program, data_reader, feeder):
         tmp = np.abs(tmp)
         error_rate.append(np.average(tmp))
         for f in range(F_NUM):
-            acc[f].append((len(tmp[tmp <= f * 0.1 + 0.1]) - len(tmp[tmp <= f * 0.1])) / len(tmp))
+            acc[f].append((len(tmp[tmp <= f * 0.1]) - len(tmp[tmp <= f * 0.1 - 0.1])) / len(tmp))
     error_rate = sum(error_rate) / len(error_rate)
     for i in acc.keys():
         acc[i] = sum(acc[i]) / len(acc[i])
@@ -125,8 +126,12 @@ def controller_process(program, data_reader, feeder):
         FIRST_FLAG = True
     msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Error Rate:{:.4f} %".format(
         error_rate * 100)
+    sum_acc = 0
     for i in acc.keys():
-        msg += "\t|K" + str(i + 1) + ":{:.2f}%".format(acc[i] * 100)
+        if i <= 2:
+            sum_acc += acc[i]
+        msg += "\t|K" + str(i) + ":{:.2f}%".format(acc[i] * 100)
+    msg += "\t|F2:{:.2f}%".format(sum_acc * 100)
     return msg, 1 - error_rate
 
 
