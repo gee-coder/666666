@@ -264,7 +264,7 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=ipt_keys)()
                 for score, transform_out in zip(ipt_scores, transform_outs):
                     input_ids, position_ids, segment_ids, input_mask = transform_out[0]
-                    score = np.array(score / 10).astype("float32").reshape(1, 1)
+                    score = np.array(score).astype("int64").reshape(1, 1)
                     sentence = input_ids[input_ids > 0]
                     yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
                           position_ids, segment_ids, input_mask, ori_sentence, sentence, score
@@ -285,7 +285,7 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
                 ori_sentence = ori_input_ids[ori_input_ids > 0]
                 sentence = input_ids[input_ids > 0]
-                score = np.array(score / 10).astype("float32").reshape(1, 1)
+                score = np.array(score).astype("int64").reshape(1, 1)
                 yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
                       position_ids, segment_ids, input_mask, ori_sentence, sentence, score
 

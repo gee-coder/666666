@@ -53,7 +53,8 @@ with fluid.program_guard(train_program, start_up_program):
     input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
     sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
 
-    scores_label = fluid.data("scores", shape=[-1, 1], dtype="float32")
+    scores_label = fluid.data("scores", shape=[-1, 11], dtype="int64")
+
     csnn = CSNN()
     csnn.conf_path = ERNIE_CONF_PATH
     net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
@@ -109,30 +110,30 @@ def controller_process(program, data_reader, feeder):
             print("sum loss error:", e)
 
     loss_info = sum(infos["loss"]) / len(infos["loss"])
-    error_rate = []
+    avg_error = []
     acc = dict((i, []) for i in range(F_NUM))
     for i, ii in zip(infos["out"], infos["label"]):
-        tmp = np.round(np.array(i).reshape(-1), 1) - np.round(np.array(ii).reshape(-1), 1)
+        tmp = np.array(i).reshape(-1) - np.array(ii).reshape(-1)
         tmp = np.abs(tmp)
-        error_rate.append(np.average(tmp))
+        avg_error.append(np.average(tmp))
         for f in range(F_NUM):
-            acc[f].append((len(tmp[tmp <= f * 0.1]) - len(tmp[tmp <= f * 0.1 - 0.1])) / len(tmp))
-    error_rate = sum(error_rate) / len(error_rate)
+            acc[f].append((len(tmp[tmp <= f]) - len(tmp[tmp <= f - 1])) / len(tmp))
+    avg_error = sum(avg_error) / len(avg_error)
     for i in acc.keys():
         acc[i] = sum(acc[i]) / len(acc[i])
     if FIRST_FLAG is False:
         DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
         log.info("\033[1;31m|TRAIN_DATA_NUM|\t|" + str(DATA_NUM) + "\033[0m")
         FIRST_FLAG = True
-    msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Error Rate:{:.4f} %".format(
-        error_rate * 100)
+    msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Avg Error Rate:{:.4f} %".format(
+        avg_error * 100)
     sum_acc = 0
     for i in acc.keys():
         if i <= 2:
             sum_acc += acc[i]
         msg += "\t|K" + str(i) + ":{:.2f}%".format(acc[i] * 100)
     msg += "\t|F2:{:.2f}%".format(sum_acc * 100)
-    return msg, 1 - error_rate
+    return msg, 1 - avg_error
 
 
 val_acc = 0

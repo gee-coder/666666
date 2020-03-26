@@ -59,7 +59,7 @@ def kea_layer(ipt_a, ipt_b):
     rb_b = conv_layers(ipt_b)
     sim_a = layers.fc([ra_a, ra_b], 32)
     sim_b = layers.fc([rb_a, rb_b], 32)
-    out = layers.fc([sim_a, sim_b], 1)
+    out = layers.fc([sim_a, sim_b], 11, act="softmax")
     return out
 
 
@@ -85,27 +85,29 @@ class CSNN:
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
                        r_src_ids, r_position_ids, r_sentence_ids, r_input_mask,
                        ori_sentence, sentence):
-        conf = ErnieConfig(self.conf_path)
-        l_model = ErnieModel(l_src_ids,
-                             l_position_ids,
-                             l_sentence_ids,
-                             task_ids=None,
-                             input_mask=l_input_mask,
-                             config=conf)
-        l_pool_feature = l_model.get_pooled_output()
-        r_model = ErnieModel(r_src_ids,
-                             r_position_ids,
-                             r_sentence_ids,
-                             task_ids=None,
-                             input_mask=r_input_mask,
-                             config=conf)
-        r_pool_feature = r_model.get_pooled_output()
+        # conf = ErnieConfig(self.conf_path)
+        # l_model = ErnieModel(l_src_ids,
+        #                      l_position_ids,
+        #                      l_sentence_ids,
+        #                      task_ids=None,
+        #                      input_mask=l_input_mask,
+        #                      config=conf)
+        # l_pool_feature = l_model.get_pooled_output()
+        # r_model = ErnieModel(r_src_ids,
+        #                      r_position_ids,
+        #                      r_sentence_ids,
+        #                      task_ids=None,
+        #                      input_mask=r_input_mask,
+        #                      config=conf)
+        # r_pool_feature = r_model.get_pooled_output()
 
         word_feature = kea_layer(ori_sentence, sentence)
-        sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
-        out = layers.elementwise_mul(word_feature, sentence_sim, 1)
-        self.layers_out = layers.fc(out, 1, name="csnn_out")
-        return self.layers_out
+        # sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
+        # out = layers.elementwise_mul(word_feature, sentence_sim, 1)
+        # self.layers_out = layers.fc(out, 1, name="csnn_out")
+        self.layers_out = word_feature
+        layers_out = layers.argmax(self.layers_out, axis=1)
+        return layers_out
 
     def req_cost(self, program, score):
         # loss = program.current_block().create_var(name="cosnn_loss_tmp", dtype="float32", shape=[1])
@@ -113,7 +115,8 @@ class CSNN:
         #                x=[self.layers_out, score],
         #                out=loss,
         #                backward_func=_backward_gt_score)
-        loss = layers.smooth_l1(self.layers_out, score)
+        # loss = layers.smooth_l1(self.layers_out, score)
+        loss = layers.cross_entropy(self.layers_out, score)
         return layers.mean(loss)
 
 # debug
