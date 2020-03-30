@@ -18,7 +18,7 @@ from scripts.os_tool import GLog, req_time_id
 USE_CUDA = False
 ROOT_PATH = r"D:\a13\server-python"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
-DATA_CSV = os.path.join(ROOT_PATH, "example_data/dgdata.csv")
+DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
 # VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
 VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
 F_NUM = 3
@@ -126,7 +126,7 @@ def controller_process(program, data_reader, feeder):
         log.info("\033[1;31m|TRAIN_DATA_NUM|\t|" + str(DATA_NUM) + "\033[0m")
         FIRST_FLAG = True
     msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Avg Error Rate:{:.4f} %".format(
-        avg_error * 100)
+        avg_error * 10)
     sum_acc = 0
     for i in acc.keys():
         if i <= 2:

@@ -6,27 +6,46 @@
 # Attention Scoring Neural Networks
 
 import numpy as np
+import paddle.fluid as fluid
 import paddle.fluid.layers as layers
 from ERNIE.ERNIE_Tiny import ErnieModel, ErnieConfig
 
-ignore_loss_max = 0.15
+SMOOTH_SCORE = 1
+CLASSIFY_NUM = 11
 
 
-def _gt_score_loss(out_score, target_loss):
-    out_score = np.array(out_score)
-    target_loss = np.array(target_loss)
-    cost = np.square(out_score - target_loss)
-    cost[cost < np.square(ignore_loss_max)] = 0.
-    return cost
+def _gt_score_loss(net_out, target_label):
+    net_out = np.array(net_out).reshape(-1, CLASSIFY_NUM)
+    target_label = np.array(target_label).reshape(-1, CLASSIFY_NUM)
+    d_out = np.zeros_like(target_label)
+    label_index = np.argmax(target_label, axis=1)
+    out_index = np.argmax(net_out, 1)
+    for sample_id in range(label_index.shape[0]):
+        if label_index[sample_id] in [i for i in
+                                      range(out_index[sample_id] - SMOOTH_SCORE,
+                                            out_index[sample_id] + SMOOTH_SCORE + 1)]:
+            d_out[sample_id] = net_out[sample_id] - target_label[sample_id]
+            for index in range(label_index[sample_id] - SMOOTH_SCORE, label_index[sample_id] + SMOOTH_SCORE):
+                if 0 < index < CLASSIFY_NUM:
+                    d_out[sample_id][index] = net_out[sample_id][label_index[sample_id]] - target_label[sample_id][
+                        label_index[sample_id]]
+        else:
+            d_out[sample_id] = net_out[sample_id] - target_label[sample_id]
+    # # 获取置信度
+    # out_score = net_out * target_label
+    # out_score = out_score[out_score > 0]
+    # # 计算损失
+    # cost = -np.average(np.log(out_score))
+    # return cost
+    return d_out
 
 
-def _backward_gt_score(out_score, target_score, loss, d_higher):
-    out_score = np.array(out_score)
-    target_score = np.array(target_score)
-    d_higher = np.array(d_higher)
-    d_out = 2 * (out_score - target_score)
-    d_out[abs(d_out) < ignore_loss_max * 2] = 0.
+def _backward_gt_score(net_out, target_label, ret_loss, d_higher):
+    ret_loss = np.array(ret_loss).reshape(-1, 11)
+    #  = np.power(np.e, ret_loss)
+    d_out = ret_loss
     return d_higher * d_out, 0
+
 
 
 def kea_layer(ipt_a, ipt_b):
@@ -110,13 +129,13 @@ class CSNN:
         return layers_out
 
     def req_cost(self, program, score):
-        # loss = program.current_block().create_var(name="cosnn_loss_tmp", dtype="float32", shape=[1])
-        # layers.py_func(func=_gt_score_loss,
-        #                x=[self.layers_out, score],
-        #                out=loss,
-        #                backward_func=_backward_gt_score)
-        # loss = layers.smooth_l1(self.layers_out, score)
-        loss = layers.cross_entropy(self.layers_out, score)
+        score = fluid.one_hot(score, CLASSIFY_NUM)
+        loss = program.current_block().create_var(name="cosnn_loss_tmp", dtype="float32", shape=[1])
+        layers.py_func(func=_gt_score_loss,
+                       x=[self.layers_out, score],
+                       out=loss,
+                       backward_func=_backward_gt_score)
+        # loss = layers.cross_entropy(self.layers_out, score)
         return layers.mean(loss)
 
 # debug
