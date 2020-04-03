@@ -13,22 +13,39 @@ from ERNIE.ERNIE_Tiny import ErnieModel, ErnieConfig
 SMOOTH_SCORE = 1
 CLASSIFY_NUM = 11
 
+SMOOTH_GRAIN = 0.1
+SMOOTH_SCALE = (10 - SMOOTH_GRAIN) / (SMOOTH_SCORE * 2 + 1)
+
 
 def _gt_score_loss(net_out, target_label):
+    # 转换格式
     net_out = np.array(net_out).reshape(-1, CLASSIFY_NUM)
     target_label = np.array(target_label).reshape(-1, CLASSIFY_NUM)
+    # 生成梯度模版
     d_out = np.zeros_like(target_label)
+    # 获取标签索引
     label_index = np.argmax(target_label, axis=1)
     out_index = np.argmax(net_out, 1)
+    # 遍历每组数据
     for sample_id in range(label_index.shape[0]):
+        # 若在网络输出在合理区间，则不严重惩罚
         if label_index[sample_id] in [i for i in
                                       range(out_index[sample_id] - SMOOTH_SCORE,
                                             out_index[sample_id] + SMOOTH_SCORE + 1)]:
+            # 计算标注梯度
             d_out[sample_id] = net_out[sample_id] - target_label[sample_id]
+            # 对在平滑区域内梯度进行重新计算
             for index in range(label_index[sample_id] - SMOOTH_SCORE, label_index[sample_id] + SMOOTH_SCORE):
+                # 过滤掉索引外的标签
                 if 0 < index < CLASSIFY_NUM:
-                    d_out[sample_id][index] = net_out[sample_id][label_index[sample_id]] - target_label[sample_id][
-                        label_index[sample_id]]
+                    # 如果为主标签，则严重惩罚
+                    tmp_scale = SMOOTH_SCALE if index != label_index[sample_id] else SMOOTH_SCALE + SMOOTH_GRAIN
+                    # 重新计算梯度
+                    tmp_grad = net_out[sample_id][label_index[sample_id]] - (target_label[sample_id][
+                        label_index[sample_id]] * tmp_scale)
+                    # 防止反向惩罚
+                    d_out[sample_id][index] = tmp_grad if tmp_grad < 0 else 0
+
         else:
             d_out[sample_id] = net_out[sample_id] - target_label[sample_id]
     # # 获取置信度
@@ -45,7 +62,6 @@ def _backward_gt_score(net_out, target_label, ret_loss, d_higher):
     #  = np.power(np.e, ret_loss)
     d_out = ret_loss
     return d_higher * d_out, 0
-
 
 
 def kea_layer(ipt_a, ipt_b):

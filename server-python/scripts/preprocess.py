@@ -235,7 +235,7 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
             data[item_id].append(item)
 
     def generate():
-        if not is_none_pre:
+        if is_none_pre is False:
             # 分词处理
             key_n_f_data, key_f_data = client1.run_jb_client(data[0])
             key_word_n_f_data, key_word_f_data = client1.run_jb_client(data[1], add_n_black=True)

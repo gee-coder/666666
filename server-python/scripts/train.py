@@ -16,6 +16,7 @@ from scripts.os_tool import GLog, req_time_id
 
 # config
 USE_CUDA = False
+NONE_PRE = False
 ROOT_PATH = r"D:\a13\server-python"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
@@ -31,8 +32,7 @@ config = {
 }
 
 log.basicConfig(level=log.DEBUG,
-                format='%(asctime)s: %(message)s',
-                filename=os.path.join(ROOT_PATH, "config/" + req_time_id()))
+                format='%(asctime)s: %(message)s')
 
 # environment
 place = fluid.CUDAPlace(0) if USE_CUDA else fluid.CPUPlace()
@@ -53,7 +53,7 @@ with fluid.program_guard(train_program, start_up_program):
     input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
     sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
 
-    scores_label = fluid.data("scores", shape=[-1, 11], dtype="int64")
+    scores_label = fluid.data("scores", shape=[-1, 1], dtype="int64")
 
     csnn = CSNN()
     csnn.conf_path = ERNIE_CONF_PATH
@@ -71,8 +71,8 @@ with fluid.program_guard(train_program, start_up_program):
     optimizer.minimize(loss)
 
 # feed data
-train_reader = reader(DATA_CSV, is_none_pre=False)
-val_reader = reader(DATA_CSV, is_none_pre=False, is_val=True)
+train_reader = reader(DATA_CSV, is_none_pre=NONE_PRE)
+val_reader = reader(DATA_CSV, is_none_pre=NONE_PRE, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
 train_feeder = fluid.DataFeeder(
