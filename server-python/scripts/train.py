@@ -16,13 +16,14 @@ from scripts.os_tool import GLog, req_time_id
 
 # config
 USE_CUDA = False
-NONE_PRE = False
+NONE_PRE = True
 ROOT_PATH = r"D:\a13\server-python"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
 # VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
 VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
 F_NUM = 3
+RANDOM_SEED = 1
 
 config = {
     "EPOCHE_NUM": 1000,
@@ -41,6 +42,7 @@ controller = fluid.Executor(place)
 # network
 start_up_program = fluid.Program()
 train_program = fluid.Program()
+train_program.random_seed = RANDOM_SEED
 with fluid.program_guard(train_program, start_up_program):
     ori_input_ids = fluid.data("ori_input_ids", shape=[-1, 128, 1], dtype="int64")
     ori_position_ids = fluid.data("ori_position_ids", shape=[-1, 128, 1], dtype="int64")
@@ -125,7 +127,7 @@ def controller_process(program, data_reader, feeder):
         DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
         log.info("\033[1;31m|TRAIN_DATA_NUM|\t|" + str(DATA_NUM) + "\033[0m")
         FIRST_FLAG = True
-    msg = "\t|loss:{:.4f}".format(loss_info) + "\t|Avg Error Rate:{:.4f} %".format(
+    msg = "\t|GARD:{:.4f}".format(loss_info) + "\t|Avg Error Rate:{:.4f} %".format(
         avg_error * 10)
     sum_acc = 0
     for i in acc.keys():
@@ -133,7 +135,7 @@ def controller_process(program, data_reader, feeder):
             sum_acc += acc[i]
         msg += "\t|K" + str(i) + ":{:.2f}%".format(acc[i] * 100)
     msg += "\t|F2:{:.2f}%".format(sum_acc * 100)
-    return msg, 1 - avg_error
+    return msg, acc[1]
 
 
 val_acc = 0
