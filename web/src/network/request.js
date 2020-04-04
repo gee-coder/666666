@@ -17,7 +17,7 @@ export function request(config) {
   instance.interceptors.request.use(config => {
     //此处编写拦截后要处理的代码，处理完后放行请求
     //为请求头添加token验证的Authorization字段
-    // config.headers.Authorization = window.sessionStorage.getItem('token')
+    // log.headers.Authorization = window.sessionStorage.getItem('token')
     return config
   }, err => {
     //出现错误将会执行这里的代码

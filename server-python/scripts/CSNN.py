@@ -118,8 +118,7 @@ class CSNN:
         self.layers_out = None
 
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
-                       r_src_ids, r_position_ids, r_sentence_ids, r_input_mask,
-                       ori_sentence, sentence):
+                       r_src_ids, r_position_ids, r_sentence_ids, r_input_mask):
         conf = ErnieConfig(self.conf_path)
         l_model = ErnieModel(l_src_ids,
                              l_position_ids,

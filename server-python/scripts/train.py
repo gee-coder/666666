@@ -12,9 +12,12 @@ import numpy as np
 
 from scripts.CSNN import CSNN
 from scripts.preprocess import reader
-from scripts.os_tool import GLog, req_time_id
+from scripts.os_tool import GLog
 
 # config
+FREEZE_MODE = False  # 冻结模式
+LOAD_PREVAR = False  # 是否读取预训练模型
+LOAD_CHECKPOINT = False  # 是否读取存档点
 USE_CUDA = False
 NONE_PRE = True
 ROOT_PATH = r"D:\a13\server-python"
@@ -22,8 +25,9 @@ ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
 # VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
 VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
+SAVE_INFER_MODE_DIR = os.path.join(ROOT_PATH, "infer.model")
 F_NUM = 3
-RANDOM_SEED = 1
+RANDOM_SEED = 2
 
 config = {
     "EPOCHE_NUM": 1000,
@@ -48,19 +52,19 @@ with fluid.program_guard(train_program, start_up_program):
     ori_position_ids = fluid.data("ori_position_ids", shape=[-1, 128, 1], dtype="int64")
     ori_segment_ids = fluid.data("ori_segment_ids", shape=[-1, 128, 1], dtype="int64")
     ori_input_mask = fluid.data("ori_input_mask", shape=[-1, 128, 1], dtype="float32")
-    ori_sentence = fluid.data("ori_sentence", shape=[-1, 1], dtype="int64", lod_level=1)
+    # ori_sentence = fluid.data("ori_sentence", shape=[-1, 1], dtype="int64", lod_level=1)
     input_ids = fluid.data("input_ids", shape=[-1, 128, 1], dtype="int64")
     position_ids = fluid.data("position_ids", shape=[-1, 128, 1], dtype="int64")
     segment_ids = fluid.data("segment_ids", shape=[-1, 128, 1], dtype="int64")
     input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
-    sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
+    # sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
 
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="int64")
 
     csnn = CSNN()
     csnn.conf_path = ERNIE_CONF_PATH
     net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
-                              segment_ids, input_mask, ori_sentence, sentence)
+                              segment_ids, input_mask)
 
     # create
     loss = csnn.req_cost(train_program, scores_label)
@@ -77,21 +81,19 @@ train_reader = reader(DATA_CSV, is_none_pre=NONE_PRE)
 val_reader = reader(DATA_CSV, is_none_pre=NONE_PRE, is_val=True)
 train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
 val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
-train_feeder = fluid.DataFeeder(
-    feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
-               "segment_ids", "input_mask", "ori_sentence", "sentence", "scores"],
-    place=place,
-    program=train_program)
-val_feeder = fluid.DataFeeder(
-    feed_list=["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
-               "segment_ids", "input_mask", "ori_sentence", "sentence", "scores"],
-    place=place,
-    program=train_program)
+feed_list = ["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
+             "segment_ids", "input_mask", "scores"]
+train_feeder = fluid.DataFeeder(feed_list=feed_list,
+                                place=place,
+                                program=train_program)
+val_feeder = fluid.DataFeeder(feed_list=feed_list,
+                              place=place,
+                              program=train_program)
 
 # init log
 config["val_acc"] = None
 config["seed"] = None
-log1 = GLog(gpack_path=ROOT_PATH + "/config", item_heads=config, file_name="train_log2", new_file=True)
+log1 = GLog(gpack_path=ROOT_PATH + "/log", item_heads=config, file_name="train_log2", new_file=True)
 FIRST_FLAG = False
 DATA_NUM = 0
 
@@ -135,26 +137,46 @@ def controller_process(program, data_reader, feeder):
             sum_acc += acc[i]
         msg += "\t|K" + str(i) + ":{:.2f}%".format(acc[i] * 100)
     msg += "\t|F2:{:.2f}%".format(sum_acc * 100)
-    return msg, acc[1]
+    return msg, sum_acc
 
 
-val_acc = 0
-max_val_acc = 0.
 controller.run(start_up_program)
-
 load_params_num = []
+load_flag = False
 
 
-# 读取预训练模型
+# 读取参数模型
 def if_exist(var):
     if os.path.exists(os.path.join(VARS_PATH, var.name)):
         load_params_num.append(1)
     return os.path.exists(os.path.join(VARS_PATH, var.name))
 
 
-fluid.io.load_vars(controller, VARS_PATH, main_program=train_program, predicate=if_exist)
-log.info(msg="\033[1;31m读取" + str(len(load_params_num)) + "组参数，若参数量低于100，请检查配置文件 \033[0m")
+# 读取模型参数
+if LOAD_PREVAR:
+    log.info(msg="\033[1;31m从" + VARS_PATH + "中读取参数\033[0m")
+    fluid.io.load_vars(controller, VARS_PATH, main_program=train_program, predicate=if_exist)
+    log.info(msg="\033[1;31m读取" + str(len(load_params_num)) + "组参数，若参数量低于100，请检查配置文件 \033[0m")
+elif LOAD_CHECKPOINT:
+    load_flag = True
+    log.info(msg="\033[1;31m从" + VARS_PATH + "中读取存档点\033[0m")
+    fluid.io.load_persistables(controller, VARS_PATH, main_program=train_program)
+    log.info(msg="\033[1;31m已读取存档点参数\033[0m")
 
+# 冻结模式
+if FREEZE_MODE:
+    assert load_flag, "未读取存档点参数，无法冻结模型"
+    log.info(msg="\033[1;31m开始修剪网络进行冻结\033[0m")
+    fluid.io.save_inference_model(dirname=SAVE_INFER_MODE_DIR,
+                                  feeded_var_names=feed_list[:-1],
+                                  target_vars=[net],
+                                  executor=controller,
+                                  main_program=train_program)
+    log.info(msg="\033[1;31m冻结完毕，预测模型被保存在" + SAVE_INFER_MODE_DIR + "\033[0m")
+    exit("Done!")
+
+val_acc = 0
+max_val_acc = 0.
 for epoch in range(config["EPOCHE_NUM"]):
     train_info, _ = controller_process(train_program, train_reader, train_feeder)
     start_time = time.time()
@@ -171,5 +193,4 @@ config["seed"] = train_program.random_seed
 config["val_acc"] = "{:.4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
 
 log1.write_log(config, message="V3")
-
-print("\n==========END==========\n|VAL Avg Accuracy:\t", config["val_acc"])
+log.info("\033[1;33m训练结束\033[0m")

@@ -267,7 +267,7 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                     score = np.array(score).astype("int64").reshape(1, 1)
                     sentence = input_ids[input_ids > 0]
                     yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
-                          position_ids, segment_ids, input_mask, ori_sentence, sentence, score
+                          position_ids, segment_ids, input_mask, score
 
         else:
             all_index_list = [i for i in range(len(data[0]))]
@@ -287,7 +287,7 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 sentence = input_ids[input_ids > 0]
                 score = np.array(score).astype("int64").reshape(1, 1)
                 yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
-                      position_ids, segment_ids, input_mask, ori_sentence, sentence, score
+                      position_ids, segment_ids, input_mask, score
 
     return generate
 # reader(r"D:\a13\server-python\example_data\dgdata.csv")
