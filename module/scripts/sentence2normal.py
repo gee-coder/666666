@@ -4,8 +4,8 @@ import urllib
 import random
 import json
 
-appid = '20200118000376520'  # 填写你的appid
-secretKey = 'DaTrOnbnCcZl6vh4g7Vq'  # 填写你的密钥
+appid = ''  # 填写你的appid
+secretKey = ''  # 填写你的密钥
 
 myurl = '/api/trans/vip/translate'
 

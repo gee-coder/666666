@@ -1,4 +1,9 @@
 # Author: Acer Zhang
+# Datetime:2020/4/7 19:56
+# Copyright belongs to the author.
+# Please indicate the source for reprinting.
+
+# Author: Acer Zhang
 # Datetime:2020/4/4 17:13
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
@@ -8,8 +13,6 @@ from typing import List
 import paddlehub as hub
 import paddle.fluid as fluid
 
-# 数据集路径
-DATA_CSV = r"D:\a13\module\example_data/val.csv"
 # 预测模型路径
 MODEL_PATH = r"D:\a13\module\model\infer.model"
 # 字典路径
@@ -19,14 +22,7 @@ SP_MODEL_PATH = r"D:\a13\module\ERNIE/spm_cased_simp_sampled.model"
 # 词典路径
 WORD_DICT_PATH = r"D:\a13\module\ERNIE/dict.wordseg.pickle"
 
-data = {"OriKey": [], "VirtualKey": [], "score": []}
-with open(DATA_CSV, "r", encoding="utf-8") as f:
-    csv = f.readlines()
-    for sample in csv:
-        infos = sample.split(",")
-        for n, info in zip(data.keys(), infos):
-            data[n].append(info.replace("\n", ""))
-
+# 数据转换器
 text_transform = hub.reader.ClassifyReader(
     dataset=None,
     vocab_path=VOCAB_PATH,
@@ -34,7 +30,13 @@ text_transform = hub.reader.ClassifyReader(
     sp_model_path=SP_MODEL_PATH,
     word_dict_path=WORD_DICT_PATH)
 
+# 载入模型
+place = fluid.CPUPlace()
+exe = fluid.Executor(place)
+program, feed_list, fetch_list = fluid.io.load_inference_model(MODEL_PATH, exe)
 
+
+# 转换函数
 def reader(ori_key: List[str], sample: List[str]):
     ori_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[ori_key])()
     ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
@@ -44,22 +46,15 @@ def reader(ori_key: List[str], sample: List[str]):
            position_ids, segment_ids, input_mask
 
 
-place = fluid.CPUPlace()
-exe = fluid.Executor(place)
-program, feed_list, fetch_list = fluid.io.load_inference_model(MODEL_PATH, exe)
-
-feeder = dict()
-print("开始进行推理\nID\t推理效果\t推理结果\t人工得分")
-count = 0
-data_num = len(data["OriKey"])
-for sample_id in range(data_num):
-    # load data
-    feed = reader([data["OriKey"][sample_id]], [data["VirtualKey"][sample_id]])
+if __name__ == '__main__':
+    print("开始进行推理")
+    # 生成对应数据 第一个参数为标准答案，第二个参数为学生答案
+    # Example: feed = reader(["标准答案"], ["学生答案"])
+    # feed = reader(["配送模式：自营配送模式；共同配送模式；第三方配送。"], ["共同配送模式；第三方配送"])
+    inp_a = "配送模式：自营配送模式；共同配送模式；第三方配送。"
+    inp_b = "老师新年好，给我点分吧。"
+    feed = reader([inp_a], [inp_b])
     # Create feed list
     feeder = dict((n, d) for n, d in zip(feed_list, feed))
     outs = exe.run(program, feed=feeder, fetch_list=fetch_list)
-    error = abs(outs[0][0] - int(data["score"][sample_id]))
-    score_info = "T" if error <= 2 else "F"
-    count += 1 if score_info == "T" else 0
-    print(sample_id, "\t ", score_info, "\t ", outs[0][0], "\t ", data["score"][sample_id])
-print("该批次准确率：{:-2f}".format(count / data_num))
+    print("预测结果", outs[0][0], "/10分")
