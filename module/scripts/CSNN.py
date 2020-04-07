@@ -138,7 +138,7 @@ class CSNN:
         # word_feature = kea_layer(ori_sentence, sentence)
         # sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
         # out = layers.fc([word_feature, sentence_sim], 32)
-        out = layers.fc([l_pool_feature, r_pool_feature], 32)
+        out = layers.fc([l_pool_feature, r_pool_feature], 28, name="csnn")
         self.layers_out = layers.fc(out, 11, name="csnn_out")
         layers_out = layers.argmax(self.layers_out, axis=1)
         return layers_out

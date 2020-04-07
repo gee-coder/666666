@@ -9,6 +9,7 @@ import logging as log
 
 import paddle.fluid as fluid
 import numpy as np
+from paddle_serving_client.io import save_model as save_serving_model
 
 from scripts.CSNN import CSNN
 from scripts.preprocess import reader
@@ -20,12 +21,13 @@ LOAD_PREVAR = False  # 是否读取预训练模型
 LOAD_CHECKPOINT = False  # 是否读取存档点
 USE_CUDA = False
 NONE_PRE = True
-ROOT_PATH = r"D:\a13\server-python"
+ROOT_PATH = r"D:\a13\module"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
 # VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
 VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
-SAVE_INFER_MODE_DIR = os.path.join(ROOT_PATH, "infer.model")
+SAVE_INFER_MODEL_DIR = os.path.join(ROOT_PATH, "infer.model")
+SAVE_SERVING_MODEL_DIR = os.path.join(ROOT_PATH, "serving")
 F_NUM = 3
 RANDOM_SEED = 2
 
@@ -73,7 +75,8 @@ with fluid.program_guard(train_program, start_up_program):
 
     learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
 
-    optimizer = fluid.optimizer.Adam(learning_rate=learning_rate)
+    optimizer = fluid.optimizer.Adam(learning_rate=learning_rate,
+                                     regularization=fluid.regularizer.L2Decay(regularization_coeff=0.01))
     optimizer.minimize(loss)
 
 # feed data
@@ -167,12 +170,25 @@ elif LOAD_CHECKPOINT:
 if FREEZE_MODE:
     assert load_flag, "未读取存档点参数，无法冻结模型"
     log.info(msg="\033[1;31m开始修剪网络进行冻结\033[0m")
-    fluid.io.save_inference_model(dirname=SAVE_INFER_MODE_DIR,
+    fluid.io.save_inference_model(dirname=SAVE_INFER_MODEL_DIR,
                                   feeded_var_names=feed_list[:-1],
                                   target_vars=[net],
                                   executor=controller,
                                   main_program=train_program)
-    log.info(msg="\033[1;31m冻结完毕，预测模型被保存在" + SAVE_INFER_MODE_DIR + "\033[0m")
+    save_serving_model(server_model_folder=SAVE_SERVING_MODEL_DIR + ".model",
+                       client_config_folder=SAVE_SERVING_MODEL_DIR + ".config",
+                       feed_var_dict={"ori_input_ids": ori_input_ids,
+                                      "ori_position_ids": ori_position_ids,
+                                      "ori_segment_ids": ori_segment_ids,
+                                      "ori_input_mask": ori_input_mask,
+                                      "input_ids": input_ids,
+                                      "position_ids": position_ids,
+                                      "segment_ids": segment_ids,
+                                      "input_mask": input_mask},
+                       fetch_var_dict={"score": net},
+                       main_program=train_program)
+    log.info(msg="\033[1;31m冻结完毕，单机预测模型被保存在" + SAVE_INFER_MODEL_DIR + "\033[0m")
+    log.info(msg="\033[1;31m冻结完毕，Serving文件被保存在" + SAVE_INFER_MODEL_DIR + "(2组：预测模型+配置文件)\033[0m")
     exit("Done!")
 
 val_acc = 0
