@@ -116,6 +116,7 @@ class CSNN:
 
     def __init__(self):
         self.layers_out = None
+        self.clock = True
 
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
                        r_src_ids, r_position_ids, r_sentence_ids, r_input_mask):
@@ -134,7 +135,8 @@ class CSNN:
                              input_mask=r_input_mask,
                              config=conf)
         r_pool_feature = r_model.get_pooled_output()
-
+        l_pool_feature.stop_gradient = self.clock
+        r_pool_feature.stop_gradient = self.clock
         # word_feature = kea_layer(ori_sentence, sentence)
         # sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
         # out = layers.fc([word_feature, sentence_sim], 32)

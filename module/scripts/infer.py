@@ -51,8 +51,8 @@ if __name__ == '__main__':
     # 生成对应数据 第一个参数为标准答案，第二个参数为学生答案
     # Example: feed = reader(["标准答案"], ["学生答案"])
     # feed = reader(["配送模式：自营配送模式；共同配送模式；第三方配送。"], ["共同配送模式；第三方配送"])
-    inp_a = "配送模式：自营配送模式；共同配送模式；第三方配送。"
-    inp_b = "老师新年好，给我点分吧。"
+    inp_a = "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。"
+    inp_b = "货场货位编号"
     feed = reader([inp_a], [inp_b])
     # Create feed list
     feeder = dict((n, d) for n, d in zip(feed_list, feed))

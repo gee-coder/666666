@@ -5,6 +5,7 @@
 
 import os
 import time
+import math
 import logging as log
 
 import paddle.fluid as fluid
@@ -28,15 +29,19 @@ DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
 VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
 SAVE_INFER_MODEL_DIR = os.path.join(ROOT_PATH, "infer.model")
 SAVE_SERVING_MODEL_DIR = os.path.join(ROOT_PATH, "serving")
-F_NUM = 3
-RANDOM_SEED = 2
+F_NUM = 3  # 打印分布范围大小
+RANDOM_SEED = 2  # 主程序随机种子
+EPOCHE_NUM = 1000  # 训练次数
+DATA_NUM = 1000  # 预估总量
+TRAIN_DATA_RATE = 0.75  # 训练集比例
+BATCH_SIZE = 2
+REGULARIZATION_COEFF = 0.0025  # 每EPOCH权重衰减比例
+BOUNDARIES = [30, 200, 500, 1000, 3000]
+LR_STEPS = [0.01, 0.001, 0.0001, 0.00001, 0.000005, 0.000001]
 
-config = {
-    "EPOCHE_NUM": 1000,
-    "BATCH_SIZE": 2,
-    "BOUNDARIES": [30, 200, 500, 1000, 3000],
-    "LR_STEPS": [0.01, 0.001, 0.0001, 0.00001, 0.000005, 0.000001]
-}
+# Flags
+FIRST_FLAG = False
+REGULARIZATION_COEFF = 1 - (REGULARIZATION_COEFF / math.ceil(DATA_NUM * TRAIN_DATA_RATE / BATCH_SIZE))
 
 log.basicConfig(level=log.DEBUG,
                 format='%(asctime)s: %(message)s')
@@ -54,12 +59,10 @@ with fluid.program_guard(train_program, start_up_program):
     ori_position_ids = fluid.data("ori_position_ids", shape=[-1, 128, 1], dtype="int64")
     ori_segment_ids = fluid.data("ori_segment_ids", shape=[-1, 128, 1], dtype="int64")
     ori_input_mask = fluid.data("ori_input_mask", shape=[-1, 128, 1], dtype="float32")
-    # ori_sentence = fluid.data("ori_sentence", shape=[-1, 1], dtype="int64", lod_level=1)
     input_ids = fluid.data("input_ids", shape=[-1, 128, 1], dtype="int64")
     position_ids = fluid.data("position_ids", shape=[-1, 128, 1], dtype="int64")
     segment_ids = fluid.data("segment_ids", shape=[-1, 128, 1], dtype="int64")
     input_mask = fluid.data("input_mask", shape=[-1, 128, 1], dtype="float32")
-    # sentence = fluid.data("sentence", shape=[-1, 1], dtype="int64", lod_level=1)
 
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="int64")
 
@@ -67,23 +70,21 @@ with fluid.program_guard(train_program, start_up_program):
     csnn.conf_path = ERNIE_CONF_PATH
     net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
                               segment_ids, input_mask)
-
     # create
     loss = csnn.req_cost(train_program, scores_label)
     val_program = train_program.clone(for_test=True)
     # create loss
-
-    learning_rate = fluid.layers.piecewise_decay(config["BOUNDARIES"], config["LR_STEPS"])  # case1, Tensor
-
+    learning_rate = fluid.layers.piecewise_decay(BOUNDARIES, LR_STEPS)  # case1, Tensor
     optimizer = fluid.optimizer.Adam(learning_rate=learning_rate,
-                                     regularization=fluid.regularizer.L2Decay(regularization_coeff=0.01))
+                                     regularization=fluid.regularizer.L2Decay(
+                                         regularization_coeff=REGULARIZATION_COEFF))
     optimizer.minimize(loss)
 
 # feed data
-train_reader = reader(DATA_CSV, is_none_pre=NONE_PRE)
-val_reader = reader(DATA_CSV, is_none_pre=NONE_PRE, is_val=True)
-train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=config["BATCH_SIZE"])
-val_reader = fluid.io.batch(val_reader, batch_size=config["BATCH_SIZE"])
+train_reader = reader(DATA_CSV, is_none_pre=NONE_PRE, train_rate=TRAIN_DATA_RATE)
+val_reader = reader(DATA_CSV, is_none_pre=NONE_PRE, is_val=True, train_rate=TRAIN_DATA_RATE)
+train_reader = fluid.io.batch(fluid.io.shuffle(train_reader, buf_size=1024), batch_size=BATCH_SIZE)
+val_reader = fluid.io.batch(val_reader, batch_size=BATCH_SIZE)
 feed_list = ["ori_input_ids", "ori_position_ids", "ori_segment_ids", "ori_input_mask", "input_ids", "position_ids",
              "segment_ids", "input_mask", "scores"]
 train_feeder = fluid.DataFeeder(feed_list=feed_list,
@@ -92,13 +93,6 @@ train_feeder = fluid.DataFeeder(feed_list=feed_list,
 val_feeder = fluid.DataFeeder(feed_list=feed_list,
                               place=place,
                               program=train_program)
-
-# init log
-config["val_acc"] = None
-config["seed"] = None
-log1 = GLog(gpack_path=ROOT_PATH + "/log", item_heads=config, file_name="train_log2", new_file=True)
-FIRST_FLAG = False
-DATA_NUM = 0
 
 
 # define train
@@ -129,7 +123,7 @@ def controller_process(program, data_reader, feeder):
     for i in acc.keys():
         acc[i] = sum(acc[i]) / len(acc[i])
     if FIRST_FLAG is False:
-        DATA_NUM = len(infos["loss"]) * config["BATCH_SIZE"] / 0.8
+        DATA_NUM = len(infos["loss"]) * BATCH_SIZE / 0.8
         log.info("\033[1;31m|TRAIN_DATA_NUM|\t|" + str(DATA_NUM) + "\033[0m")
         FIRST_FLAG = True
     msg = "\t|GARD:{:.4f}".format(loss_info) + "\t|Avg Error Rate:{:.4f} %".format(
@@ -193,20 +187,18 @@ if FREEZE_MODE:
 
 val_acc = 0
 max_val_acc = 0.
-for epoch in range(config["EPOCHE_NUM"]):
+for epoch in range(EPOCHE_NUM):
     train_info, _ = controller_process(train_program, train_reader, train_feeder)
     start_time = time.time()
     val_info, val_acc = controller_process(val_program, val_reader, val_feeder)
     avg_sample = (time.time() - start_time) / (DATA_NUM * 0.2)
-    log.info("\033[1;35m|EPOCH:" + str(epoch) + "\t|SAMPLE TIME:{:.6f}/s".format(avg_sample) + "\033[0m")
+    log.info(
+        "\033[1;35m|EPOCH:" + str(epoch) + "\t|SAMPLE TIME:{:.6f}/s".format(
+            avg_sample) + "\t|AGO MAX ACC:{:.6f}%".format(max_val_acc) + "\033[0m")
     log.info("\033[1;34m|TRAIN:" + train_info + "\033[0m")
     log.info("\033[1;34m|VAL:" + val_info + "\033[0m")
     if max_val_acc < val_acc:
         max_val_acc = val_acc
         fluid.io.save_persistables(controller, "./save_params", main_program=train_program)
 
-config["seed"] = train_program.random_seed
-config["val_acc"] = "{:.4f} %".format(val_acc / config["EPOCHE_NUM"] * 100)
-
-log1.write_log(config, message="V3")
 log.info("\033[1;33m训练结束\033[0m")
