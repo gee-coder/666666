@@ -12,21 +12,20 @@ import paddle.fluid as fluid
 import numpy as np
 from paddle_serving_client.io import save_model as save_serving_model
 
-from scripts.CSNN import CSNN
+from scripts.KeaNN import KeaNN
 from scripts.preprocess import reader
-from scripts.os_tool import GLog
 
 # config
-FREEZE_MODE = False  # 冻结模式
+FREEZE_MODE = True  # 冻结模式
 LOAD_PREVAR = False  # 是否读取预训练模型
-LOAD_CHECKPOINT = False  # 是否读取存档点
+LOAD_CHECKPOINT = True  # 是否读取存档点
 USE_CUDA = False
 NONE_PRE = True
 ROOT_PATH = r"D:\a13\module"
 ERNIE_CONF_PATH = os.path.join(ROOT_PATH, "ERNIE/ernie_tiny_config.json")
 DATA_CSV = os.path.join(ROOT_PATH, "example_data/nonpre_data.csv")
-# VARS_PATH = os.path.join(ROOT_PATH, "pre_params")
-VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
+VARS_PATH = os.path.join(ROOT_PATH, "./model/94.8save_params")
+# VARS_PATH = os.path.join(ROOT_PATH, "ERNIE/params")
 SAVE_INFER_MODEL_DIR = os.path.join(ROOT_PATH, "infer.model")
 SAVE_SERVING_MODEL_DIR = os.path.join(ROOT_PATH, "serving")
 F_NUM = 3  # 打印分布范围大小
@@ -66,12 +65,13 @@ with fluid.program_guard(train_program, start_up_program):
 
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="int64")
 
-    csnn = CSNN()
-    csnn.conf_path = ERNIE_CONF_PATH
-    net = csnn.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, position_ids,
-                              segment_ids, input_mask)
+    keann = KeaNN()
+    confidence = keann.confidence
+    keann.conf_path = ERNIE_CONF_PATH
+    net = keann.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids,
+                               position_ids, segment_ids, input_mask)
     # create
-    loss = csnn.req_cost(train_program, scores_label)
+    loss = keann.req_cost(train_program, scores_label)
     val_program = train_program.clone(for_test=True)
     # create loss
     learning_rate = fluid.layers.piecewise_decay(BOUNDARIES, LR_STEPS)  # case1, Tensor
@@ -166,7 +166,7 @@ if FREEZE_MODE:
     log.info(msg="\033[1;31m开始修剪网络进行冻结\033[0m")
     fluid.io.save_inference_model(dirname=SAVE_INFER_MODEL_DIR,
                                   feeded_var_names=feed_list[:-1],
-                                  target_vars=[net],
+                                  target_vars=[net, confidence],
                                   executor=controller,
                                   main_program=train_program)
     save_serving_model(server_model_folder=SAVE_SERVING_MODEL_DIR + ".model",
@@ -179,7 +179,7 @@ if FREEZE_MODE:
                                       "position_ids": position_ids,
                                       "segment_ids": segment_ids,
                                       "input_mask": input_mask},
-                       fetch_var_dict={"score": net},
+                       fetch_var_dict={"score": net, "confidence": confidence},
                        main_program=train_program)
     log.info(msg="\033[1;31m冻结完毕，单机预测模型被保存在" + SAVE_INFER_MODEL_DIR + "\033[0m")
     log.info(msg="\033[1;31m冻结完毕，Serving文件被保存在" + SAVE_INFER_MODEL_DIR + "(2组：预测模型+配置文件)\033[0m")

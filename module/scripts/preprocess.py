@@ -205,10 +205,10 @@ client1 = Client(server_addr="127.0.0.1:6888", jb=True)
 log.info("\033[0;32m Load vocab...")
 text_transform = hub.reader.ClassifyReader(
     dataset=None,
-    vocab_path=r"D:\a13\server-python\ERNIE\vocab.txt",
+    vocab_path=r"D:\a13\module\ERNIE\vocab.txt",
     max_seq_len=128,
-    sp_model_path=r"D:\a13\server-python\ERNIE/spm_cased_simp_sampled.model",
-    word_dict_path=r"D:\a13\server-python\ERNIE/dict.wordseg.pickle")
+    sp_model_path=r"D:\a13\module\ERNIE/spm_cased_simp_sampled.model",
+    word_dict_path=r"D:\a13\module\ERNIE/dict.wordseg.pickle")
 log.info("\033[0;32m Load vocab ready")
 log.info("\033[0;32m load cache dataset ipt")
 
@@ -283,8 +283,6 @@ def reader(data_csv: str, is_val: bool = False, is_none_pre: bool = True, train_
                 ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
                 transform_outs = text_transform.data_generator(batch_size=1, phase="predict", data=[[sample]])()
                 input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
-                ori_sentence = ori_input_ids[ori_input_ids > 0]
-                sentence = input_ids[input_ids > 0]
                 score = np.array(score).astype("int64").reshape(1, 1)
                 yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
                       position_ids, segment_ids, input_mask, score

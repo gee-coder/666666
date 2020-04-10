@@ -1,0 +1,70 @@
+feed_var {
+  name: "ori_input_ids"
+  alias_name: "ori_input_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "ori_position_ids"
+  alias_name: "ori_position_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "ori_segment_ids"
+  alias_name: "ori_segment_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "ori_input_mask"
+  alias_name: "ori_input_mask"
+  is_lod_tensor: false
+  feed_type: 1
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "input_ids"
+  alias_name: "input_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "position_ids"
+  alias_name: "position_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "segment_ids"
+  alias_name: "segment_ids"
+  is_lod_tensor: false
+  feed_type: 0
+  shape: 128
+  shape: 1
+}
+feed_var {
+  name: "input_mask"
+  alias_name: "input_mask"
+  is_lod_tensor: false
+  feed_type: 1
+  shape: 128
+  shape: 1
+}
+fetch_var {
+  name: "arg_max_0.tmp_0"
+  alias_name: "score"
+  is_lod_tensor: false
+  fetch_type: 0
+}

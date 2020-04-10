@@ -13,8 +13,8 @@ from ERNIE.ERNIE_Tiny import ErnieModel, ErnieConfig
 SMOOTH_SCORE = 1
 CLASSIFY_NUM = 11
 
-SMOOTH_GRAIN = 0.1
-SMOOTH_SCALE = (CLASSIFY_NUM - SMOOTH_GRAIN) / (SMOOTH_SCORE * 2 + 1)
+SMOOTH_GRAIN = 0.
+SMOOTH_SCALE = (CLASSIFY_NUM - SMOOTH_GRAIN) / (SMOOTH_SCORE * 2 + 1) / CLASSIFY_NUM
 
 
 def _gt_score_loss(net_out, target_label):
@@ -32,8 +32,8 @@ def _gt_score_loss(net_out, target_label):
         if label_index[sample_id] in [i for i in
                                       range(out_index[sample_id] - SMOOTH_SCORE,
                                             out_index[sample_id] + SMOOTH_SCORE + 1)]:
-            # 计算标注梯度
-            d_out[sample_id] = net_out[sample_id] - target_label[sample_id]
+            # 计算标注梯度并归一化
+            d_out[sample_id] = net_out[sample_id] - target_label[sample_id] + (1 - 0.5)
             # 对在平滑区域内梯度进行重新计算
             for index in range(label_index[sample_id] - SMOOTH_SCORE, label_index[sample_id] + SMOOTH_SCORE):
                 # 过滤掉索引外的标签
@@ -42,7 +42,7 @@ def _gt_score_loss(net_out, target_label):
                     tmp_scale = SMOOTH_SCALE if index != label_index[sample_id] else SMOOTH_SCALE + SMOOTH_GRAIN
                     # 重新计算梯度
                     tmp_grad = net_out[sample_id][label_index[sample_id]] - (target_label[sample_id][
-                                                                                 label_index[sample_id]] * tmp_scale)
+                                                                                 label_index[sample_id]] * 0.5)
                     # 防止反向惩罚
                     d_out[sample_id][index] = tmp_grad if tmp_grad < 0 else 0.
 
@@ -111,11 +111,12 @@ def keb_layer(ipt_a, ipt_b):
     return out
 
 
-class CSNN:
+class KeaNN:
     conf_path = None
 
     def __init__(self):
         self.layers_out = None
+        self.confidence = None
         self.clock = True
 
     def define_network(self, l_src_ids, l_position_ids, l_sentence_ids, l_input_mask,
@@ -140,8 +141,10 @@ class CSNN:
         # word_feature = kea_layer(ori_sentence, sentence)
         # sentence_sim = keb_layer(l_pool_feature, r_pool_feature)
         # out = layers.fc([word_feature, sentence_sim], 32)
-        out = layers.fc([l_pool_feature, r_pool_feature], 28, name="csnn")
-        self.layers_out = layers.fc(out, 11, name="csnn_out")
+        out = layers.fc([l_pool_feature, r_pool_feature], 128)
+        out = layers.fc(out, 32)
+        self.layers_out = layers.fc(out, 11, name="kea_out")
+        self.confidence = layers.softmax(self.layers_out)
         layers_out = layers.argmax(self.layers_out, axis=1)
         return layers_out
 
