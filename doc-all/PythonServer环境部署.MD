@@ -63,7 +63,7 @@ Example:
 
 `python D:/server-python/HubModule/module.py`
 
-最终出现类似`{'test(score)': '10', 'test(confidence)': '25.93%'}`字样，即可视为测试成功。
+最终出现类似`{'id': 'test', 'score': '10', '(confidence': '25.93%'}`字样，即可视为测试成功。
 
 ### 3、启动Kea预测服务器
 

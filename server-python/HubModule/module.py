@@ -62,8 +62,9 @@ class Kea(hub.Module):
         confidence = outs[1][0]
         confidence = confidence[max(0, score - 1): min(score + 1, 11)].tolist()
         confidence = sum(confidence)
-        ret = {inp_id + "(score)": str(score),
-               inp_id + "(confidence)": "{:.2f}%".format(confidence * 100)}
+        ret = {"id": str(inp_id),
+               "score": str(score),
+               "confidence": "{:.2f}%".format(confidence * 100)}
         return ret
 
 

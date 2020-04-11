@@ -6,11 +6,12 @@
 import requests
 import json
 
+
 input_dict = {"inp_id": "test",
               "text_a": "入库作业管理有：收货；组盘和注册；上架",
               "text_b": "入库作业管理有：收货；组盘和注册；上架"}
 
-url = "http://127.0.0.1:8866/predict/kea"
+url = "http://49.234.62.154:10004/predict/kea"
 headers = {"Content-Type": "application/json"}
 r = requests.post(url=url, headers=headers, data=json.dumps(input_dict))
 
