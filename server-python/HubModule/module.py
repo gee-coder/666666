@@ -60,8 +60,12 @@ class Kea(hub.Module):
         # Create feed list
         feeder = dict((n, d) for n, d in zip(self.model[1], feed))
         outs = self.exe.run(self.model[0], feed=feeder, fetch_list=self.model[2])
-        ret = {inp_id+"(score)": str(outs[0][0]),
-               inp_id+"(score)": str(outs[1][0])}
+        score = outs[0][0]
+        confidence = outs[1][0]
+        confidence = confidence[max(0, score - 1): min(score + 1, 11)].tolist()
+        confidence = sum(confidence)
+        ret = {inp_id + "(score)": str(score),
+               inp_id + "(confidence)": "{:.2f}%".format(confidence * 100)}
         return ret
 
 

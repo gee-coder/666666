@@ -66,10 +66,10 @@ with fluid.program_guard(train_program, start_up_program):
     scores_label = fluid.data("scores", shape=[-1, 1], dtype="int64")
 
     keann = KeaNN()
-    confidence = keann.confidence
     keann.conf_path = ERNIE_CONF_PATH
     net = keann.define_network(ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids,
                                position_ids, segment_ids, input_mask)
+    confidence = keann.confidence
     # create
     loss = keann.req_cost(train_program, scores_label)
     val_program = train_program.clone(for_test=True)
@@ -139,7 +139,6 @@ def controller_process(program, data_reader, feeder):
 
 controller.run(start_up_program)
 load_params_num = []
-load_flag = False
 
 
 # 读取参数模型
@@ -155,14 +154,13 @@ if LOAD_PREVAR:
     fluid.io.load_vars(controller, VARS_PATH, main_program=train_program, predicate=if_exist)
     log.info(msg="\033[1;31m读取" + str(len(load_params_num)) + "组参数，若参数量低于100，请检查配置文件 \033[0m")
 elif LOAD_CHECKPOINT:
-    load_flag = True
     log.info(msg="\033[1;31m从" + VARS_PATH + "中读取存档点\033[0m")
     fluid.io.load_persistables(controller, VARS_PATH, main_program=train_program)
     log.info(msg="\033[1;31m已读取存档点参数\033[0m")
 
 # 冻结模式
 if FREEZE_MODE:
-    assert load_flag, "未读取存档点参数，无法冻结模型"
+    assert LOAD_CHECKPOINT, "未读取存档点参数，无法冻结模型"
     log.info(msg="\033[1;31m开始修剪网络进行冻结\033[0m")
     fluid.io.save_inference_model(dirname=SAVE_INFER_MODEL_DIR,
                                   feeded_var_names=feed_list[:-1],
@@ -181,7 +179,7 @@ if FREEZE_MODE:
                                       "input_mask": input_mask},
                        fetch_var_dict={"score": net, "confidence": confidence},
                        main_program=train_program)
-    log.info(msg="\033[1;31m冻结完毕，单机预测模型被保存在" + SAVE_INFER_MODEL_DIR + "\033[0m")
+    log.info(msg="\033[1;31m冻结完毕，单机预测模型被保存在" + SAVE_INFER_MODEL_DIR + "(1组：单机模型)\033[0m")
     log.info(msg="\033[1;31m冻结完毕，Serving文件被保存在" + SAVE_INFER_MODEL_DIR + "(2组：预测模型+配置文件)\033[0m")
     exit("Done!")
 
