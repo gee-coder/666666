@@ -144,7 +144,7 @@ Kea损失函数为了平滑临近标签梯度，提供了以下三种方案：
 
 ##3、网络结构
 
-![](./网络结构图.png)
+![](https://github.com/GitHuplus/666666/blob/master/doc-all/%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84%E5%9B%BE.png)
 
 ##4、开始Finetune
 ###4.1数据准备
