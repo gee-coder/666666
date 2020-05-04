@@ -53,6 +53,7 @@ if __name__ == '__main__':
     # Example: feed = reader(["标准答案"], ["学生答案"])
     # feed = reader(["配送模式：自营配送模式；共同配送模式；第三方配送。"], ["共同配送模式；第三方配送"])
     inp_a = "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。"
+    # inp_b = " poJ"
     # inp_b = "货场货位编号"
     inp_b = "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。"
     feed = reader([inp_a], [inp_b])
@@ -63,4 +64,4 @@ if __name__ == '__main__':
     confidence = outs[1][0]
     confidence = confidence[max(0, score - 1): min(score + 1, 11)].tolist()
     confidence = sum(confidence)
-    print("预测结果", score, "/10分", "\t置信度{:.2f}%".format(confidence * 100))
+    print("预测结果", score, "/10分", "\t置信度{:.2f}%".format(min(confidence * 125, 100)))
