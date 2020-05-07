@@ -3,6 +3,7 @@
 # Copyright belongs to the author.
 # Please indicate the source for reprinting.
 
+import sys
 import os
 import time
 import math
@@ -14,6 +15,9 @@ from paddle_serving_client.io import save_model as save_serving_model
 
 from scripts.KeaNN import KeaNN
 from scripts.preprocess import reader
+from scripts.os_tool import Logger, req_time_id
+
+sys.stdout = Logger("./config/" + req_time_id() + '.log', sys.stdout)
 
 # config
 FREEZE_MODE = True  # 冻结模式

@@ -87,10 +87,11 @@ class KeaNN:
         r_pool_feature.stop_gradient = self.clock
         # l_pool_feature = layers.fc(l_pool_feature,128)
         # r_pool_feature = layers.fc(r_pool_feature,128)
+        self.confidence = layers.cos_sim(l_pool_feature, r_pool_feature)
         out = layers.fc([l_pool_feature, r_pool_feature], 128)
         out = layers.fc(out, 32)
         self.layers_out = layers.fc(out, 11, name="kea_out")
-        self.confidence = layers.softmax(self.layers_out)
+        # self.confidence = layers.softmax(self.layers_out)
         layers_out = layers.argmax(self.layers_out, axis=1)
         return layers_out
 
