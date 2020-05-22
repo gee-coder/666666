@@ -10,9 +10,22 @@ import paddlehub as hub
 from paddlehub.module.module import moduleinfo, serving
 
 
+def load_json(info):
+    ids = []
+    k = []
+    vk = []
+    if "inp_data" in info:
+        info = info["inp_data"]
+    for sample in info:
+        ids.append(sample["answerId"])
+        k.append(sample["standardAnswer"])
+        vk.append(sample["answer"])
+    return ids, k, vk
+
+
 @moduleinfo(
     name="kea",
-    version="6.3",
+    version="6.4",
     summary="All copyrighted by Acer Zhang",
     author="Acer Zhang",
     author_email="zhangacer@foxmail.com",
@@ -40,38 +53,69 @@ class Kea(hub.Module):
             max_seq_len=128,
             sp_model_path=sp_model_path,
             word_dict_path=word_dict_path)
-        place = fluid.CUDAPlace(int(gpu_index)) if gpu_index else fluid.CPUPlace()
-        self.exe = fluid.Executor(place)
+        self.place = fluid.CUDAPlace(int(gpu_index)) if gpu_index else fluid.CPUPlace()
+        self.exe = fluid.Executor(self.place)
         self.model = fluid.io.load_inference_model(model_path, self.exe)
 
-    def kea_reader(self, ori_key: str, sample: str):
-        ori_outs = self.text_transform.data_generator(batch_size=1, phase="predict", data=[[ori_key]])()
-        ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
-        transform_outs = self.text_transform.data_generator(batch_size=1, phase="predict", data=[[sample]])()
-        input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
-        return ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
-               position_ids, segment_ids, input_mask
+    def reader(self, ori_key: list, sample: list):
+        def generate():
+            for k, s in zip(ori_key, sample):
+                ori_outs = self.text_transform.data_generator(batch_size=1, phase="predict", data=[[k]])()
+                ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask = [i for i in ori_outs][0][0]
+                transform_outs = self.text_transform.data_generator(batch_size=1, phase="predict", data=[[s]])()
+                input_ids, position_ids, segment_ids, input_mask = [i for i in transform_outs][0][0]
+                yield ori_input_ids, ori_position_ids, ori_segment_ids, ori_input_mask, input_ids, \
+                      position_ids, segment_ids, input_mask
+
+        return generate
 
     @serving
-    def kea_server(self, inp_id, text_a, text_b):
-        feed = self.kea_reader(text_a, text_b)
+    def kea_server(self, inp_data):
+        ids, k, vk = load_json(inp_data)
+        infer_reader = fluid.io.batch(self.reader(k, vk), batch_size=128)
+        infer_feeder = fluid.DataFeeder(feed_list=self.model[1],
+                                        place=self.place,
+                                        program=self.model[0])
         # Create feed list
-        feeder = dict((n, d) for n, d in zip(self.model[1], feed))
-        outs = self.exe.run(self.model[0], feed=feeder, fetch_list=self.model[2])
-        score = outs[0][0]
-        confidence = outs[1][0]
-        confidence = confidence[max(0, score - 1): min(score + 1, 11)].tolist()
-        confidence = sum(confidence)
-        ret = {"id": str(inp_id),
-               "score": str(score),
-               "confidence": "{:.2f}%".format(confidence * 100)}
+        now_id = 0
+        ret = []
+        for data in infer_reader():
+            outs = self.exe.run(self.model[0], feed=infer_feeder.feed(data), fetch_list=self.model[2])
+            for i in range(len(outs[0])):
+                score = outs[0][i]
+                confidence = outs[1][i]
+                confidence = sum(confidence)
+                mini_ret = {"answerId": str(ids[now_id]),
+                            "systemScore": int(score),
+                            "confidence": "{:.2f}%".format(confidence * 100)}
+                ret.append(mini_ret)
+                now_id += 1
         return ret
 
 
 if __name__ == "__main__":
-    senta = Kea()
-    input_dict = {"id": "test",
-                  "text_a": "入库作业管理有：收货；组盘和注册；上架",
-                  "text_b": "入库作业管理有：收货；组盘和注册；上架"}
-    results = senta.kea_server(input_dict["id"], input_dict["text_a"], input_dict["text_b"])
+    kea = Kea()
+    input_dict = {"inp_data": [
+        {
+            "answerId": "5ea6bb708737b66cd217d7b0",
+            "standardAnswer": "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。",
+            "answer": " poJ",
+        },
+        {
+            "answerId": "5ea6bb708737b66cd217d7b1",
+            "standardAnswer": "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。",
+            "answer": "  ",
+        },
+        {
+            "answerId": "5ea6bb708737b66cd217d7b2",
+            "standardAnswer": "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。",
+            "answer": "货场货位编号",
+        },
+        {
+            "answerId": "5ea6bb708737b66cd217d7b3",
+            "standardAnswer": "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。",
+            "answer": "储位编码包括：库房编号、库房内货位编号、货架上的货位编号、货场货位编号。",
+        }
+    ]}
+    results = kea.kea_server(input_dict)
     print(results)
