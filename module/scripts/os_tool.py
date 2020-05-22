@@ -14,7 +14,6 @@ def req_time_id(short_YMD: bool = False, short_HMS: bool = False):
     获取当前时间
     :return:
     """
-    pack = "None"
     if short_YMD:
         pack = time.strftime("%Y-%m-%d", time.localtime())
     elif short_HMS:
